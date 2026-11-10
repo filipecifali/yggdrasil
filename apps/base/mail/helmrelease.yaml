@@ -35,7 +35,6 @@ spec:
         PERMIT_DOCKER: "connected-networks"
         ENABLE_RSPAMD: 1
         ENABLE_CLAMAV: 0
-        ENABLE_FAIL2BAN: 0
         ENABLE_OPENDKIM: 0
         ENABLE_OPENDMARC: 0
 
