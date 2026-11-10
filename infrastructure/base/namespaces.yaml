@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ingress-nginx
+  labels:
+    yggdrasil.io/realm: bifrost
+    yggdrasil.io/tier: infrastructure
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dns-system
+  labels:
+    yggdrasil.io/realm: mimir
+    yggdrasil.io/tier: apps
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: mail-system
+  labels:
+    yggdrasil.io/realm: huginn-muninn
+    yggdrasil.io/tier: apps
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: web-system
+  labels:
+    yggdrasil.io/realm: midgard
+    yggdrasil.io/tier: apps

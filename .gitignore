@@ -1,0 +1,16 @@
+# Kubernetes & Flux secrets / local state
+*.kubeconfig
+kubeconfig
+*.key
+*.pem
+*.crt
+.env
+.env.*
+
+# OS & Editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*~
