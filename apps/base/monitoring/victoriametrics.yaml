@@ -6,6 +6,9 @@ metadata:
   labels:
     yggdrasil.io/realm: hlidskjalf
 spec:
+  image:
+    repository: registry.yggdrasil.local/library/victoria-metrics
+    tag: v1.115.0
   retentionPeriod: "30d"
   nodeSelector:
     yggdrasil.io/node-pool: platform
@@ -24,6 +27,9 @@ metadata:
   labels:
     yggdrasil.io/realm: hlidskjalf
 spec:
+  image:
+    repository: registry.yggdrasil.local/library/vmagent
+    tag: v1.115.0
   selectAllByDefault: true
   scrapeInterval: 30s
   nodeSelector:

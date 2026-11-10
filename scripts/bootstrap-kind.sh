@@ -10,11 +10,19 @@ CLUSTER_NAME="yggdrasil"
 GITHUB_OWNER="${GITHUB_OWNER:-$(gh api user -q .login)}"
 GITHUB_REPO="${GITHUB_REPO:-yggdrasil}"
 GITHUB_BRANCH="${GITHUB_BRANCH:-main}"
+PIVOT_TO_FORGEJO="${PIVOT_TO_FORGEJO:-false}"
 
 echo "==> Checking Docker daemon..."
 if ! docker info >/dev/null 2>&1; then
   echo "Docker daemon is not running. Start it with: sudo service docker start"
   exit 1
+fi
+
+echo "==> Checking WSL inotify limits (multi-node Kind requires max_user_instances >= 8192)..."
+CURRENT_INOTIFY="$(sysctl -n fs.inotify.max_user_instances 2>/dev/null || echo 128)"
+if [ "${CURRENT_INOTIFY}" -lt 8192 ]; then
+  echo "WARNING: fs.inotify.max_user_instances is ${CURRENT_INOTIFY} (< 8192)."
+  echo "Run: sudo sysctl -w fs.inotify.max_user_instances=8192 fs.inotify.max_user_watches=1048576"
 fi
 
 if ! kind get clusters | grep -qx "${CLUSTER_NAME}"; then
@@ -37,9 +45,16 @@ flux bootstrap github \
   --personal \
   --private=false
 
-echo "==> Flux bootstrap complete! Pulling generated flux-system manifests..."
+echo "==> Pulling generated flux-system manifests..."
 git pull --rebase
 
-echo "==> Current Flux & Namespace status:"
+if [ "${PIVOT_TO_FORGEJO}" = "true" ]; then
+  echo "==> Waiting for Flux Kustomizations to deploy Forgejo before pivoting..."
+  flux reconcile kustomization infrastructure --with-source
+  flux reconcile kustomization apps --with-source
+  ./scripts/pivot-to-forgejo.sh
+fi
+
+echo "==> Current Flux & Node-Pool status:"
+kubectl get nodes -L yggdrasil.io/node-pool
 flux get all
-kubectl get ns

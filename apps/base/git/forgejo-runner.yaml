@@ -42,7 +42,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: runner
-          image: code.forgejo.org/forgejo/runner:6
+          image: registry.yggdrasil.local/library/forgejo-runner:6
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:

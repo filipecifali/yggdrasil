@@ -56,6 +56,9 @@ spec:
                     nodeSelector:
                       yggdrasil.io/node-pool: platform
   values:
+    global:
+      imageName: registry.yggdrasil.local/library/seaweedfs
+      imageTag: "4.00"
     master:
       replicas: 1
       data:

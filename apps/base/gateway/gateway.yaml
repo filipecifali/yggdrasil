@@ -12,6 +12,8 @@ spec:
         pod:
           nodeSelector:
             yggdrasil.io/node-pool: platform
+        container:
+          image: registry.yggdrasil.local/library/envoy:distroless-v1.33.0
       envoyService:
         type: ClusterIP
 ---

@@ -1,9 +1,15 @@
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 name: yggdrasil
+containerdConfigPatches:
+  - |-
+    [plugins."io.containerd.grpc.v1.cri".registry]
+      config_path = "/etc/containerd/certs.d"
 nodes:
   # ===========================================================================
-  # Control-Plane Node (Host Port Mappings for Local Simulation)
+  # HA Control-Plane Pool (3 Nodes — Stacked etcd Quorum + HAProxy API LB)
+  # Note: extraPortMappings are bound on the primary control-plane container
+  # (kube-proxy routes NodePorts across all cluster nodes).
   # ===========================================================================
   - role: control-plane
     kubeadmConfigPatches:
@@ -37,6 +43,8 @@ nodes:
       - containerPort: 30993
         hostPort: 993
         protocol: TCP
+  - role: control-plane
+  - role: control-plane
 
   # ===========================================================================
   # Platform Node Pool (3 Nodes — Operators, Edge Gateway, PKI, DNS, Monitoring, Storage)

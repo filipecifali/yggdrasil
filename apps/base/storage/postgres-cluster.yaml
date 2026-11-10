@@ -8,6 +8,7 @@ metadata:
 spec:
   description: "Shared PostgreSQL cluster managed by CloudNativePG"
   instances: 1
+  imageName: registry.yggdrasil.local/library/postgresql:18.1
   affinity:
     nodeSelector:
       yggdrasil.io/node-pool: platform

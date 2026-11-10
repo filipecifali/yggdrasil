@@ -18,6 +18,9 @@ spec:
     injector:
       enabled: false
     server:
+      image:
+        repository: registry.yggdrasil.local/library/vault
+        tag: "1.19.0"
       nodeSelector: |
         yggdrasil.io/node-pool: platform
       resources:

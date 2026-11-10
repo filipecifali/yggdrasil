@@ -16,6 +16,10 @@ spec:
       interval: 1h
   values:
     # Deploy as a standalone authoritative DNS server on the platform node-pool
+    image:
+      repository: registry.yggdrasil.local/library/coredns
+      tag: "1.12.0"
+
     isClusterService: false
     replicaCount: 1
 

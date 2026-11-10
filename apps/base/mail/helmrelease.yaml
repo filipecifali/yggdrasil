@@ -17,6 +17,10 @@ spec:
   values:
     fullnameOverride: docker-mailserver
 
+    image:
+      repository: registry.yggdrasil.local/library/docker-mailserver
+      tag: "15.0.0"
+
     # Use TLS certificate issued by cert-manager (yggdrasil-ca)
     certificate: mail-server-tls
 
