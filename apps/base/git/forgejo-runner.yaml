@@ -1,0 +1,85 @@
+# Placeholder Runner registration secret (populated via ExternalSecret from Vault in production)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: forgejo-runner-secret
+  namespace: git-system
+  labels:
+    yggdrasil.io/realm: valhalla
+type: Opaque
+stringData:
+  runner-token: "placeholder-forgejo-runner-token"
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: forgejo-runner
+  namespace: git-system
+  labels:
+    app.kubernetes.io/name: forgejo-runner
+    yggdrasil.io/realm: valhalla
+spec:
+  serviceName: forgejo-runner
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: forgejo-runner
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: forgejo-runner
+        yggdrasil.io/realm: valhalla
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: runner
+          image: code.forgejo.org/forgejo/runner:6
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          command:
+            - sh
+            - -c
+            - |
+              if [ ! -f /data/.runner ]; then
+                forgejo-runner register --no-interactive \
+                  --instance "http://forgejo-http.git-system.svc.cluster.local:3000" \
+                  --token "${FORGEJO_RUNNER_TOKEN}" \
+                  --name "yggdrasil-runner" \
+                  --labels "ubuntu-latest:docker://node:20-bookworm" || true
+              fi
+              exec forgejo-runner daemon
+          env:
+            - name: FORGEJO_RUNNER_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: forgejo-runner-secret
+                  key: runner-token
+          volumeMounts:
+            - name: runner-data
+              mountPath: /data
+  volumeClaimTemplates:
+    - metadata:
+        name: runner-data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi

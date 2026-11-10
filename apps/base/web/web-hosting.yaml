@@ -1,0 +1,191 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: yggdrasil-web-content
+  namespace: web-system
+  labels:
+    yggdrasil.io/realm: midgard
+data:
+  index.html: |
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <title>Yggdrasil — Sovereign Kubernetes Cluster</title>
+      <style>
+        body { font-family: system-ui, sans-serif; max-width: 720px; margin: 4rem auto; padding: 0 1.5rem; background: #0f172a; color: #e2e8f0; }
+        h1 { color: #38bdf8; }
+        .card { background: #1e293b; padding: 1.25rem; border-radius: 8px; margin-top: 1rem; border: 1px solid #334155; }
+        code { color: #7dd3fc; }
+      </style>
+    </head>
+    <body>
+      <h1>Yggdrasil</h1>
+      <p>Self-contained Kubernetes infrastructure stack reconciled by <strong>Flux v2</strong>.</p>
+      <div class="card">
+        <h3>Active Realms</h3>
+        <ul>
+          <li><strong>Bifrost</strong> (<code>envoy-gateway-system</code>): Envoy Gateway Edge Proxy, TLS 1.2/1.3, Brotli/Gzip, Rate Limiting</li>
+          <li><strong>Heimdall &amp; Norns</strong> (<code>cert-manager</code> / <code>external-secrets</code>): Internal PKI CA &amp; Secret Sync</li>
+          <li><strong>Andvari</strong> (<code>vault-system</code>): HashiCorp Vault Secret Store</li>
+          <li><strong>Hlidskjalf &amp; Sleipnir</strong> (<code>monitoring-system</code> / <code>keda-system</code>): VictoriaMetrics &amp; KEDA Autoscaling</li>
+          <li><strong>Nidavellir &amp; Sindri</strong> (<code>storage-system</code> / <code>registry-system</code>): CloudNativePG, SeaweedFS S3 &amp; Harbor</li>
+          <li><strong>Valhalla</strong> (<code>git-system</code>): Forgejo Git Forge &amp; CI/CD Actions Runner</li>
+          <li><strong>Mimir</strong> (<code>dns-system</code>): Authoritative CoreDNS with DNSSEC, SPF, DKIM, DMARC, DANE, CAA</li>
+          <li><strong>Huginn &amp; Muninn</strong> (<code>mail-system</code>): <code>docker-mailserver</code> + Roundcube Webmail</li>
+          <li><strong>Midgard</strong> (<code>web-system</code>): Unprivileged Web Hosting &amp; RFC 8461 MTA-STS Policy Host</li>
+        </ul>
+      </div>
+    </body>
+    </html>
+  mta-sts.txt: |
+    version: STSv1
+    mode: enforce
+    mx: mail.yggdrasil.local
+    max_age: 86400
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: yggdrasil-web
+  namespace: web-system
+  labels:
+    app.kubernetes.io/name: yggdrasil-web
+    yggdrasil.io/realm: midgard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: yggdrasil-web
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: yggdrasil-web
+        yggdrasil.io/realm: midgard
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        runAsGroup: 101
+        fsGroup: 101
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: nginx
+          image: nginxinc/nginx-unprivileged:1.27-alpine
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 25m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          volumeMounts:
+            - name: web-content
+              mountPath: /usr/share/nginx/html/index.html
+              subPath: index.html
+              readOnly: true
+            - name: web-content
+              mountPath: /usr/share/nginx/html/.well-known/mta-sts.txt
+              subPath: mta-sts.txt
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+            - name: var-cache
+              mountPath: /var/cache/nginx
+            - name: var-run
+              mountPath: /var/run
+      volumes:
+        - name: web-content
+          configMap:
+            name: yggdrasil-web-content
+        - name: tmp
+          emptyDir: {}
+        - name: var-cache
+          emptyDir: {}
+        - name: var-run
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: yggdrasil-web
+  namespace: web-system
+  labels:
+    app.kubernetes.io/name: yggdrasil-web
+    yggdrasil.io/realm: midgard
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: yggdrasil-web
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: yggdrasil-web
+  namespace: web-system
+  labels:
+    app.kubernetes.io/name: yggdrasil-web
+    yggdrasil.io/realm: midgard
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: bifrost
+      namespace: envoy-gateway-system
+  hostnames:
+    - "yggdrasil.local"
+    - "www.yggdrasil.local"
+    - "mta-sts.yggdrasil.local"
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            set:
+              - name: Strict-Transport-Security
+                value: "max-age=63072000; includeSubDomains; preload"
+              - name: Cache-Control
+                value: "public, max-age=300, stale-while-revalidate=60"
+              - name: X-Content-Type-Options
+                value: "nosniff"
+              - name: X-Frame-Options
+                value: "DENY"
+              - name: Referrer-Policy
+                value: "strict-origin-when-cross-origin"
+              - name: Content-Security-Policy
+                value: "default-src 'self'; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'"
+      backendRefs:
+        - name: yggdrasil-web
+          port: 80

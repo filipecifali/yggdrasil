@@ -1,0 +1,42 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: docker-mailserver
+  namespace: mail-system
+spec:
+  interval: 10m
+  chart:
+    spec:
+      chart: docker-mailserver
+      version: ">=4.0.0 <5.0.0"
+      sourceRef:
+        kind: HelmRepository
+        name: docker-mailserver
+        namespace: flux-system
+      interval: 1h
+  values:
+    fullnameOverride: docker-mailserver
+
+    # Use TLS certificate issued by cert-manager (yggdrasil-ca)
+    certificate: mail-server-tls
+
+    deployment:
+      env:
+        OVERRIDE_HOSTNAME: "mail.yggdrasil.local"
+        LOG_LEVEL: "info"
+        TLS_LEVEL: "modern"
+        SPOOF_PROTECTION: "1"
+        PERMIT_DOCKER: "connected-networks"
+        ENABLE_RSPAMD: "1"
+        ENABLE_CLAMAV: "0"
+        ENABLE_FAIL2BAN: "0"
+        ENABLE_OPENDKIM: "0"
+        ENABLE_OPENDMARC: "0"
+
+    # Initial declarative mailbox configuration (SHA-512 hash for placeholder password 'ChangeMe123!')
+    configMap:
+      postfix-accounts.cf: |
+        postmaster@yggdrasil.local|{SHA512-CRYPT}$6$rounds=5000$yggdrasilsalt$V8M5bO3u8Y9j6u5z2x6q9G5T6k7P2L9W4m1N3c8v0B5x7Z2a4S6d8F0g2H4j6K8l0M2n4B6v8C0x2Z4a6S8d0/
+      postfix-virtual.cf: |
+        admin@yggdrasil.local postmaster@yggdrasil.local
+        security@yggdrasil.local postmaster@yggdrasil.local

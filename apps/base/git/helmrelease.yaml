@@ -1,0 +1,60 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: forgejo
+  namespace: git-system
+spec:
+  interval: 10m
+  chart:
+    spec:
+      chart: forgejo
+      version: ">=11.0.0 <13.0.0"
+      sourceRef:
+        kind: HelmRepository
+        name: forgejo
+        namespace: flux-system
+      interval: 1h
+  values:
+    replicaCount: 1
+
+    persistence:
+      enabled: true
+      size: 5Gi
+
+    postgresql:
+      enabled: false
+    postgresql-ha:
+      enabled: false
+    redis-cluster:
+      enabled: false
+
+    gitea:
+      config:
+        APP_NAME: "Yggdrasil Git (Valhalla)"
+        database:
+          DB_TYPE: sqlite3
+        server:
+          DOMAIN: git.yggdrasil.local
+          ROOT_URL: https://git.yggdrasil.local/
+          SSH_DOMAIN: git.yggdrasil.local
+        security:
+          INSTALL_LOCK: true
+          COOKIE_USERNAME: yggdrasil_git_uname
+        session:
+          COOKIE_SECURE: true
+          SAME_SITE: lax
+        service:
+          # Prevent unauthorized public self-registration by default
+          DISABLE_REGISTRATION: true
+          REQUIRE_SIGNIN_VIEW: true
+          ENABLE_NOTIFY_MAIL: true
+        actions:
+          ENABLED: true
+        mailer:
+          ENABLED: true
+          PROTOCOL: smtp
+          SMTP_ADDR: docker-mailserver.mail-system.svc.cluster.local
+          SMTP_PORT: 25
+          FROM: "git@yggdrasil.local"
+        metrics:
+          ENABLED: true

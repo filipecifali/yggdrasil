@@ -1,0 +1,28 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: yggdrasil-web-autoscaler
+  namespace: web-system
+  labels:
+    app.kubernetes.io/name: yggdrasil-web
+    yggdrasil.io/realm: sleipnir
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: yggdrasil-web
+  pollingInterval: 15
+  cooldownPeriod: 60
+  minReplicaCount: 1
+  maxReplicaCount: 5
+  triggers:
+    - type: cpu
+      metricType: Utilization
+      metadata:
+        value: "75"
+    - type: prometheus
+      metadata:
+        serverAddress: "http://vmsingle-yggdrasil-vmsingle.monitoring-system.svc.cluster.local:8429"
+        metricName: envoy_http_downstream_rq_total
+        query: sum(rate(envoy_http_downstream_rq_total[1m]))
+        threshold: "50"

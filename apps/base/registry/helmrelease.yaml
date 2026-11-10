@@ -1,0 +1,66 @@
+# Harbor Admin Secret (populated via ExternalSecret from Vault in production)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: harbor-admin-credentials
+  namespace: registry-system
+  labels:
+    yggdrasil.io/realm: sindri
+type: Opaque
+stringData:
+  HARBOR_ADMIN_PASSWORD: "ChangeMe123!"
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: harbor
+  namespace: registry-system
+spec:
+  interval: 10m
+  chart:
+    spec:
+      chart: harbor
+      version: ">=1.16.0 <2.0.0"
+      sourceRef:
+        kind: HelmRepository
+        name: harbor
+        namespace: flux-system
+      interval: 1h
+  values:
+    # Traffic is routed via Envoy Gateway (HTTPRoute -> Service/harbor:80)
+    expose:
+      type: clusterIP
+      tls:
+        enabled: false
+      clusterIP:
+        name: harbor
+        ports:
+          httpPort: 80
+
+    externalURL: https://registry.yggdrasil.local
+
+    # Reference Kubernetes Secret instead of inline plaintext password
+    existingSecretAdminPassword: harbor-admin-credentials
+    existingSecretAdminPasswordKey: HARBOR_ADMIN_PASSWORD
+
+    metrics:
+      enabled: true
+
+    persistence:
+      enabled: true
+      persistentVolumeClaim:
+        registry:
+          size: 10Gi
+        jobservice:
+          jobLog:
+            size: 1Gi
+        database:
+          size: 2Gi
+        redis:
+          size: 1Gi
+
+    # Lightweight footprint for local Kind simulation
+    trivy:
+      enabled: false
+    notary:
+      enabled: false

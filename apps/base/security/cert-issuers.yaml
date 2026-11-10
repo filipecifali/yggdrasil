@@ -1,0 +1,76 @@
+# 1. Bootstrap Self-Signed Issuer to generate the Yggdrasil Internal Root CA
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: yggdrasil-selfsigned-bootstrap
+spec:
+  selfSigned: {}
+---
+# 2. Yggdrasil Root CA Certificate (stored in cert-manager namespace)
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: yggdrasil-root-ca
+  namespace: cert-manager
+spec:
+  isCA: true
+  commonName: "Yggdrasil Root CA"
+  secretName: yggdrasil-root-ca-secret
+  duration: 87600h # 10 years
+  renewBefore: 8760h
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+    rotationPolicy: Always
+  issuerRef:
+    name: yggdrasil-selfsigned-bootstrap
+    kind: ClusterIssuer
+    group: cert-manager.io
+---
+# 3. Cluster-wide CA Issuer backed by the Yggdrasil Root CA
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: yggdrasil-ca
+spec:
+  ca:
+    secretName: yggdrasil-root-ca-secret
+---
+# 4. Wildcard TLS Certificate for Envoy Gateway (Bifrost) covering *.yggdrasil.local and yggdrasil.local
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: bifrost-wildcard-tls
+  namespace: envoy-gateway-system
+spec:
+  secretName: bifrost-wildcard-tls
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+    rotationPolicy: Always
+  issuerRef:
+    name: yggdrasil-ca
+    kind: ClusterIssuer
+  commonName: "yggdrasil.local"
+  dnsNames:
+    - "yggdrasil.local"
+    - "*.yggdrasil.local"
+---
+# 5. Dedicated Mail TLS Certificate for docker-mailserver (SMTP STARTTLS 25/587 & IMAPS 993)
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: mail-server-tls
+  namespace: mail-system
+spec:
+  secretName: mail-server-tls
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+    rotationPolicy: Always
+  issuerRef:
+    name: yggdrasil-ca
+    kind: ClusterIssuer
+  commonName: "mail.yggdrasil.local"
+  dnsNames:
+    - "mail.yggdrasil.local"

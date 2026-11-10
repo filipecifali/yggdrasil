@@ -1,10 +1,112 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: ingress-nginx
+  name: envoy-gateway-system
   labels:
     yggdrasil.io/realm: bifrost
     yggdrasil.io/tier: infrastructure
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cert-manager
+  labels:
+    yggdrasil.io/realm: heimdall
+    yggdrasil.io/tier: infrastructure
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: external-secrets
+  labels:
+    yggdrasil.io/realm: norns
+    yggdrasil.io/tier: infrastructure
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: vault-system
+  labels:
+    yggdrasil.io/realm: andvari
+    yggdrasil.io/tier: apps
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cnpg-system
+  labels:
+    yggdrasil.io/realm: urdarbrunnr
+    yggdrasil.io/tier: infrastructure
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring-system
+  labels:
+    yggdrasil.io/realm: hlidskjalf
+    yggdrasil.io/tier: infrastructure
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: keda-system
+  labels:
+    yggdrasil.io/realm: sleipnir
+    yggdrasil.io/tier: infrastructure
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: git-system
+  labels:
+    yggdrasil.io/realm: valhalla
+    yggdrasil.io/tier: apps
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: storage-system
+  labels:
+    yggdrasil.io/realm: nidavellir
+    yggdrasil.io/tier: apps
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: registry-system
+  labels:
+    yggdrasil.io/realm: sindri
+    yggdrasil.io/tier: apps
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
 ---
 apiVersion: v1
 kind: Namespace
@@ -13,6 +115,9 @@ metadata:
   labels:
     yggdrasil.io/realm: mimir
     yggdrasil.io/tier: apps
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
 ---
 apiVersion: v1
 kind: Namespace
@@ -21,6 +126,9 @@ metadata:
   labels:
     yggdrasil.io/realm: huginn-muninn
     yggdrasil.io/tier: apps
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
 ---
 apiVersion: v1
 kind: Namespace
@@ -29,3 +137,6 @@ metadata:
   labels:
     yggdrasil.io/realm: midgard
     yggdrasil.io/tier: apps
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted

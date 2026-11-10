@@ -1,0 +1,168 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: coredns
+  namespace: dns-system
+spec:
+  interval: 10m
+  chart:
+    spec:
+      chart: coredns
+      version: ">=1.39.0 <2.0.0"
+      sourceRef:
+        kind: HelmRepository
+        name: coredns
+        namespace: flux-system
+      interval: 1h
+  values:
+    # Deploy as a standalone authoritative DNS server (do not touch kube-system kube-dns)
+    isClusterService: false
+    replicaCount: 1
+
+    serviceType: ClusterIP
+
+    # Mount DNSSEC signing keys from Kubernetes Secret
+    extraSecrets:
+      - name: coredns-dnssec-keys
+        mountPath: /etc/coredns/keys
+
+    servers:
+      # Authoritative zone for yggdrasil.local (Hardened + DNSSEC signed)
+      - zones:
+          - zone: yggdrasil.local.
+        port: 53
+        plugins:
+          - name: errors
+          - name: log
+          # RFC 8482: Block ANY queries to prevent DNS amplification attacks
+          - name: any
+          # Strip unnecessary authority/additional sections to minimize response size
+          - name: minimal
+          # Hot-reload zone files on ConfigMap update
+          - name: reload
+            parameters: 10s
+          # On-the-fly DNSSEC signing (ECDSAP256SHA256)
+          - name: dnssec
+            parameters: yggdrasil.local.
+            configBlock: |-
+              key file /etc/coredns/keys/Kyggdrasil.local.+013+05707
+          # Serve authoritative RFC 1035 zone file (AXFR/IXFR transfers disabled by default)
+          - name: file
+            parameters: /etc/coredns/yggdrasil.local.db yggdrasil.local.
+
+      # Default recursive / forwarding block (ACL-restricted to prevent Open Resolver abuse)
+      - zones:
+          - zone: .
+        port: 53
+        plugins:
+          - name: errors
+          - name: any
+          - name: minimal
+          # Restrict recursion strictly to RFC 1918 / loopback networks
+          - name: acl
+            configBlock: |-
+              allow net 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 127.0.0.0/8 ::1/128
+              block
+          - name: health
+            configBlock: |-
+              lameduck 5s
+          - name: ready
+          - name: prometheus
+            parameters: 0.0.0.0:9153
+          - name: forward
+            parameters: . 1.1.1.1 8.8.8.8
+          - name: cache
+            parameters: 30
+          - name: loop
+          - name: reload
+
+    zoneFiles:
+      - filename: yggdrasil.local.db
+        domain: yggdrasil.local
+        contents: |
+          $ORIGIN yggdrasil.local.
+          $TTL 3600
+          @       IN  SOA ns1.yggdrasil.local. hostmaster.yggdrasil.local. (
+                          2026111007 ; Serial (YYYYMMDDNN)
+                          3600       ; Refresh (1h)
+                          600        ; Retry (10m)
+                          604800     ; Expire (1w)
+                          300 )      ; Minimum TTL (5m)
+
+          ; =====================================================================
+          ; 1. Authoritative Nameservers & Glue
+          ; =====================================================================
+          @                   IN  NS      ns1.yggdrasil.local.
+          ns1                 IN  A       127.0.0.1
+          ns1                 IN  TXT     "v=spf1 -all"
+
+          ; =====================================================================
+          ; 2. CAA (Certification Authority Authorization - RFC 8659)
+          ;    Restricts TLS certificate issuance strictly to Let's Encrypt
+          ;    and forbids wildcard certificates unless explicitly enabled.
+          ; =====================================================================
+          @                   IN  CAA     0 issue "letsencrypt.org"
+          @                   IN  CAA     0 issuewild ";"
+          @                   IN  CAA     0 iodef "mailto:security@yggdrasil.local"
+
+          ; =====================================================================
+          ; 3. Web Hosting Records (Midgard / Bifrost) + Subdomain Anti-Spoofing
+          ; =====================================================================
+          @                   IN  A       127.0.0.1
+          www                 IN  CNAME   @
+          webmail             IN  CNAME   @
+          mta-sts             IN  CNAME   @
+          s3                  IN  CNAME   @
+          registry            IN  CNAME   @
+          vault               IN  CNAME   @
+          metrics             IN  CNAME   @
+          git                 IN  CNAME   @
+
+          ; =====================================================================
+          ; 4. Email Routing & HELO/EHLO Identity (Huginn & Muninn)
+          ; =====================================================================
+          mail                IN  A       127.0.0.1
+          @                   IN  MX      10 mail.yggdrasil.local.
+
+          ; =====================================================================
+          ; 5. SPF (Sender Policy Framework - RFC 7208)
+          ;    Strict hard-fail (-all) for root domain and mail HELO host
+          ; =====================================================================
+          @                   IN  TXT     "v=spf1 mx a:mail.yggdrasil.local -all"
+          mail                IN  TXT     "v=spf1 a -all"
+
+          ; =====================================================================
+          ; 6. DKIM (DomainKeys Identified Mail - RFC 6376)
+          ;    Selector 'mail' used by docker-mailserver / Rspamd.
+          ;    Replace p= with your generated public key from docker-mailserver.
+          ; =====================================================================
+          mail._domainkey     IN  TXT     ( "v=DKIM1; k=rsa; s=email; "
+                                            "p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA000000000000000000000000" )
+
+          ; =====================================================================
+          ; 7. DMARC (Domain-based Message Auth, Reporting & Conformance - RFC 7489)
+          ;    Strict alignment (adkim=s, aspf=s) and reject policy (p=reject, sp=reject)
+          ; =====================================================================
+          _dmarc              IN  TXT     "v=DMARC1; p=reject; sp=reject; adkim=s; aspf=s; pct=100; fo=1; rua=mailto:postmaster@yggdrasil.local; ruf=mailto:postmaster@yggdrasil.local"
+
+          ; =====================================================================
+          ; 8. MTA-STS (RFC 8461) & SMTP TLS Reporting (TLS-RPT - RFC 8460)
+          ; =====================================================================
+          _mta-sts            IN  TXT     "v=STSv1; id=2026111001"
+          _smtp._tls          IN  TXT     "v=TLSRPTv1; rua=mailto:postmaster@yggdrasil.local"
+
+          ; =====================================================================
+          ; 9. DANE / TLSA (RFC 6698 / RFC 7672)
+          ;    Usage 3 (DANE-EE), Selector 1 (SPKI), Matching 1 (SHA-256)
+          ; =====================================================================
+          _25._tcp.mail       IN  TLSA    3 1 1 0000000000000000000000000000000000000000000000000000000000000000
+
+          ; =====================================================================
+          ; 10. Mail Client Autodiscovery SRV Records (RFC 6186)
+          ;     Advertise encrypted Submission (587) & IMAPS (993); disable plaintext
+          ; =====================================================================
+          _submission._tcp    IN  SRV     0 1 587 mail.yggdrasil.local.
+          _imaps._tcp         IN  SRV     0 1 993 mail.yggdrasil.local.
+          _imap._tcp          IN  SRV     0 0 0 .
+          _pop3._tcp          IN  SRV     0 0 0 .
+          _pop3s._tcp         IN  SRV     0 0 0 .

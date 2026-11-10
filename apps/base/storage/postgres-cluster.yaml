@@ -1,0 +1,36 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: yggdrasil-pg
+  namespace: storage-system
+  labels:
+    yggdrasil.io/realm: nidavellir
+spec:
+  description: "Shared PostgreSQL cluster managed by CloudNativePG"
+  instances: 1
+  storage:
+    size: 5Gi
+  monitoring:
+    enablePodMonitor: true
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 512Mi
+  bootstrap:
+    initdb:
+      database: app
+      owner: app
+  postgresql:
+    pg_hba:
+      - hostssl all all all scram-sha-256
+      - host all all 10.0.0.0/8 scram-sha-256
+      - host all all 172.16.0.0/12 scram-sha-256
+    parameters:
+      password_encryption: "scram-sha-256"
+      max_connections: "200"
+      shared_buffers: "128MB"
+      log_connections: "on"
+      log_disconnections: "on"
