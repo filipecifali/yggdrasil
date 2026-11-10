@@ -12,6 +12,7 @@ It provides a complete infrastructure and application stack inside Kubernetes:
 - **Container & Artifact Registry:** **Harbor** (Container & Helm OCI Registry)
 - **Git Forge & CI/CD:** **Forgejo** + **Forgejo Actions Runner** (supports pivoting Flux v2 to reconcile directly from in-cluster Forgejo)
 - **Observability & Autoscaling:** **VictoriaMetrics Operator** (`VMSingle` + `VMAgent`) + **KEDA** Event-Driven Autoscaler
+- **Cross-Cluster WireGuard Mesh:** **Kilo** (`squat/kilo`) WireGuard full-mesh overlay connecting Yggdrasil with external Kubernetes clusters (`jotunheim`)
 - **Web Hosting:** Unprivileged NGINX hosting & RFC 8461 MTA-STS policy endpoint
 
 ---
@@ -43,6 +44,7 @@ yggdrasil/
 │   └── workflows/
 │       └── validate-gitops.yaml        # Forgejo Actions CI pipeline run by forgejo-runner on push/PR
 ├── clusters/
+│   ├── jotunheim/                      # Secondary cluster manifests (Kilo DaemonSet & peering CRDs)
 │   └── kind/                           # Flux entrypoint for the local Kind cluster
 │       ├── flux-system/                # Managed by `flux bootstrap` (pinned to platform pool)
 │       ├── infrastructure.yaml         # Flux Kustomization for operators, CRDs & namespaces
@@ -54,6 +56,7 @@ yggdrasil/
 │   │   ├── external-secrets/           # External Secrets Operator HelmRelease
 │   │   ├── gateway/                    # Envoy Gateway Controller HelmRelease
 │   │   ├── keda/                       # KEDA Operator HelmRelease
+│   │   ├── kilo/                       # Kilo WireGuard Mesh CRDs, DaemonSet & Peer definitions
 │   │   └── victoriametrics-operator/   # VictoriaMetrics Operator HelmRelease
 │   └── overlays/
 │       └── kind/                       # Kind infrastructure overlay
@@ -71,9 +74,11 @@ yggdrasil/
 │   └── overlays/
 │       └── kind/                       # Kind NodePort services (Gateway 80/443, DNS 5353, Mail 2525/587/993)
 ├── docs/
-│   └── adding-a-domain.md              # Step-by-step guide for onboarding domains (SPF/DKIM/DMARC/DNSSEC)
+│   ├── adding-a-domain.md              # Step-by-step guide for onboarding domains (SPF/DKIM/DMARC/DNSSEC)
+│   └── kilo-vpn-mesh.md                # Multi-cluster WireGuard mesh setup, Kilo architecture & routing runbook
 ├── kind/
-│   └── cluster-config.yaml             # 9-node HA Kind cluster definition (3 CP + 3 platform + 3 apps)
+│   ├── cluster-config.yaml             # 9-node HA Kind cluster definition (3 CP + 3 platform + 3 apps)
+│   └── cluster-jotunheim.yaml          # 2-node secondary Kind cluster definition (1 CP + 1 worker)
 └── scripts/
     ├── bootstrap-kind.sh               # Helper script to create the Kind cluster & bootstrap Flux
     ├── bootstrap-vault-secrets.sh      # Initializes/unseals Vault & seeds all app secrets into Vault KV-v2
@@ -101,6 +106,7 @@ yggdrasil/
 | `git-system` | **Valhalla** | `apps` | Forgejo Git Server & Forgejo Actions Runner | `git.yggdrasil.local` |
 | `mail-system` | **Huginn & Muninn** | `apps` | `docker-mailserver` + Roundcube Webmail | `mail.yggdrasil.local`, `webmail.yggdrasil.local` |
 | `web-system` | **Midgard** | `apps` | Web Hosting & RFC 8461 MTA-STS Policy Host | `yggdrasil.local`, `www.yggdrasil.local`, `mta-sts.yggdrasil.local` |
+| `vpn-system` | **Niflheim** | `all` | Kilo WireGuard Mesh DaemonSet & Peering Routes | `:51820` (UDP) |
 
 ---
 
@@ -159,6 +165,7 @@ See the [**Documentation Index (`docs/README.md`)**](docs/README.md) for detaile
 - [**Forgejo Git & CI/CD Runner (`docs/forgejo-git.md`)**](docs/forgejo-git.md) — Self-hosted Forgejo server and non-root Actions Runner
 - [**Observability & Autoscaling (`docs/observability-and-autoscaling.md`)**](docs/observability-and-autoscaling.md) — VictoriaMetrics (`VMSingle`/`VMAgent`) and KEDA `ScaledObject`
 - [**Web Hosting & MTA-STS (`docs/web-hosting.md`)**](docs/web-hosting.md) — Unprivileged NGINX (`readOnlyRootFilesystem`) and RFC 8461 MTA-STS policy hosting
+- [**WireGuard Mesh: Kilo (`docs/kilo-vpn-mesh.md`)**](docs/kilo-vpn-mesh.md) — Multi-cluster WireGuard overlay, non-overlapping Pod/Service CIDRs, and cross-cluster routing
 
 ## End-to-End Bootstrap Process
 

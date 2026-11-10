@@ -26,6 +26,7 @@
 | **`docker-mailserver` (`mail`)** | `ghcr.io/docker-mailserver/docker-mailserver:15.0.0` | `registry.yggdrasil.local/library/docker-mailserver:15.0.0` |
 | **Roundcube (`mail`)** | `docker.io/roundcube/roundcubemail:1.6.9-apache` | `registry.yggdrasil.local/library/roundcubemail:1.6.9-apache` |
 | **Web Hosting (`web`)** | `docker.io/nginxinc/nginx-unprivileged:1.27-alpine` | `registry.yggdrasil.local/library/nginx-unprivileged:1.27-alpine` |
+| **Kilo WireGuard Mesh (`vpn`)** | `docker.io/squat/kilo:0.7.0` | `registry.yggdrasil.local/library/kilo:0.7.0` |
 
 ## Mirrored Helm Charts (`oci://harbor.registry-system.svc.cluster.local/library/*`)
 

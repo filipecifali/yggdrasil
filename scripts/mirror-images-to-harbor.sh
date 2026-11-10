@@ -32,6 +32,7 @@ IMAGES=(
   "ghcr.io/docker-mailserver/docker-mailserver:15.0.0|${HARBOR_HOST}/library/docker-mailserver:15.0.0"
   "docker.io/roundcube/roundcubemail:1.6.9-apache|${HARBOR_HOST}/library/roundcubemail:1.6.9-apache"
   "docker.io/nginxinc/nginx-unprivileged:1.27-alpine|${HARBOR_HOST}/library/nginx-unprivileged:1.27-alpine"
+  "docker.io/squat/kilo:0.7.0|${HARBOR_HOST}/library/kilo:0.7.0"
 )
 
 echo "==> Waiting for Harbor deployment in '${HARBOR_NS}' to become Ready..."

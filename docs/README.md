@@ -17,3 +17,4 @@ This directory contains architecture, configuration, and operational guides for 
 | [**Forgejo Git & CI/CD Runner (`forgejo-git.md`)**](forgejo-git.md) | *Valhalla* (`git-system`) | Self-hosted Forgejo Git server, SMTP integration, and non-root Forgejo Actions Runner |
 | [**Observability & Autoscaling (`observability-and-autoscaling.md`)**](observability-and-autoscaling.md) | *Hlidskjalf & Sleipnir* (`monitoring-system`, `keda-system`) | VictoriaMetrics Operator (`VMSingle`, `VMAgent`) and KEDA event-driven autoscaling |
 | [**Web Hosting & MTA-STS (`web-hosting.md`)**](web-hosting.md) | *Midgard* (`web-system`) | Unprivileged NGINX hosting, read-only root filesystem, RFC 8461 MTA-STS policy hosting, and edge headers |
+| [**Kilo WireGuard Mesh (`kilo-vpn-mesh.md`)**](kilo-vpn-mesh.md) | *Niflheim* (`vpn-system`) | Kilo WireGuard mesh overlay, multi-cluster peering (`Peer` CRDs), cross-cluster pod/service routing |

@@ -1,0 +1,14 @@
+apiVersion: kilo.squat.ai/v1alpha1
+kind: Peer
+metadata:
+  name: yggdrasil
+spec:
+  publicKey: I7gIqeZDKaM/8CQ5voO6cnJP/4oFF69Iacw40Oquv0Q=
+  endpoint:
+    dnsOrIP:
+      ip: 172.18.0.5
+    port: 51820
+  allowedIPs:
+    - 10.244.0.0/16
+    - 10.96.0.0/12
+    - 10.4.0.0/16
