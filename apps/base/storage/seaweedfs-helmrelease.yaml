@@ -1,28 +1,24 @@
-# S3 IAM credentials Secret (managed via ExternalSecret from Vault in production)
-apiVersion: v1
-kind: Secret
+# S3 IAM credentials Secret pulled from HashiCorp Vault via External Secrets Operator
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
 metadata:
   name: seaweedfs-s3-iam
   namespace: storage-system
   labels:
     yggdrasil.io/realm: nidavellir
-type: Opaque
-stringData:
-  seaweedfs_s3_config: |
-    {
-      "identities": [
-        {
-          "name": "yggdrasil-s3-admin",
-          "credentials": [
-            {
-              "accessKey": "yggdrasil-local-access-key",
-              "secretKey": "yggdrasil-local-secret-key-change-me"
-            }
-          ],
-          "actions": ["Admin", "Read", "List", "Tagging", "Write"]
-        }
-      ]
-    }
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: vault-backend
+  target:
+    name: seaweedfs-s3-iam
+    creationPolicy: Owner
+  data:
+    - secretKey: seaweedfs_s3_config
+      remoteRef:
+        key: storage/seaweedfs-s3-iam
+        property: seaweedfs_s3_config
 ---
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
@@ -58,7 +54,6 @@ spec:
   values:
     global:
       imageName: registry.yggdrasil.local/library/seaweedfs
-      imageTag: "4.00"
     master:
       replicas: 1
       data:

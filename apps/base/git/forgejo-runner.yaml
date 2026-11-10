@@ -1,14 +1,24 @@
-# Placeholder Runner registration secret (populated via ExternalSecret from Vault in production)
-apiVersion: v1
-kind: Secret
+# Forgejo Runner registration secret pulled from HashiCorp Vault via External Secrets Operator
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
 metadata:
   name: forgejo-runner-secret
   namespace: git-system
   labels:
     yggdrasil.io/realm: valhalla
-type: Opaque
-stringData:
-  runner-token: "placeholder-forgejo-runner-token"
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: vault-backend
+  target:
+    name: forgejo-runner-secret
+    creationPolicy: Owner
+  data:
+    - secretKey: runner-token
+      remoteRef:
+        key: git/forgejo-runner
+        property: runner-token
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -55,17 +65,19 @@ spec:
             limits:
               cpu: 500m
               memory: 256Mi
+          workingDir: /data
           command:
             - sh
             - -c
             - |
-              if [ ! -f /data/.runner ]; then
+              while [ ! -f /data/.runner ]; do
+                echo "Attempting to register forgejo-runner with Forgejo..."
                 forgejo-runner register --no-interactive \
                   --instance "http://forgejo-http.git-system.svc.cluster.local:3000" \
                   --token "${FORGEJO_RUNNER_TOKEN}" \
                   --name "yggdrasil-runner" \
-                  --labels "ubuntu-latest:docker://node:20-bookworm" || true
-              fi
+                  --labels "ubuntu-latest:host" || sleep 30
+              done
               exec forgejo-runner daemon
           env:
             - name: FORGEJO_RUNNER_TOKEN

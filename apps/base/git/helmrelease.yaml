@@ -1,3 +1,33 @@
+# Forgejo administrator credentials pulled from HashiCorp Vault via ESO
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: forgejo-admin-secret
+  namespace: git-system
+  labels:
+    yggdrasil.io/realm: valhalla
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: vault-backend
+  target:
+    name: forgejo-admin-secret
+    creationPolicy: Owner
+  data:
+    - secretKey: username
+      remoteRef:
+        key: git/forgejo-admin
+        property: username
+    - secretKey: password
+      remoteRef:
+        key: git/forgejo-admin
+        property: password
+    - secretKey: email
+      remoteRef:
+        key: git/forgejo-admin
+        property: email
+---
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
@@ -16,6 +46,8 @@ spec:
       interval: 1h
   values:
     replicaCount: 1
+    strategy:
+      type: Recreate
     nodeSelector:
       yggdrasil.io/node-pool: apps
 
@@ -36,6 +68,9 @@ spec:
       enabled: false
 
     gitea:
+      admin:
+        existingSecret: forgejo-admin-secret
+        email: "admin@yggdrasil.local"
       config:
         APP_NAME: "Yggdrasil Git (Valhalla)"
         database:

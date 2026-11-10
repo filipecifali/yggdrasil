@@ -31,13 +31,13 @@ spec:
         OVERRIDE_HOSTNAME: "mail.yggdrasil.local"
         LOG_LEVEL: "info"
         TLS_LEVEL: "modern"
-        SPOOF_PROTECTION: "1"
+        SPOOF_PROTECTION: 1
         PERMIT_DOCKER: "connected-networks"
-        ENABLE_RSPAMD: "1"
-        ENABLE_CLAMAV: "0"
-        ENABLE_FAIL2BAN: "0"
-        ENABLE_OPENDKIM: "0"
-        ENABLE_OPENDMARC: "0"
+        ENABLE_RSPAMD: 1
+        ENABLE_CLAMAV: 0
+        ENABLE_FAIL2BAN: 0
+        ENABLE_OPENDKIM: 0
+        ENABLE_OPENDMARC: 0
 
     # Initial declarative mailbox configuration (SHA-512 hash for placeholder password 'ChangeMe123!')
     configMap:

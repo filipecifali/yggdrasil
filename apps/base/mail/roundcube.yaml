@@ -1,3 +1,26 @@
+# Roundcube session encryption secret pulled from HashiCorp Vault via ESO
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: roundcube-secret
+  namespace: mail-system
+  labels:
+    app.kubernetes.io/name: roundcube
+    yggdrasil.io/realm: huginn-muninn
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: vault-backend
+  target:
+    name: roundcube-secret
+    creationPolicy: Owner
+  data:
+    - secretKey: ROUNDCUBEMAIL_DES_KEY
+      remoteRef:
+        key: mail/roundcube
+        property: ROUNDCUBEMAIL_DES_KEY
+---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -54,6 +77,9 @@ spec:
             - name: http
               containerPort: 80
               protocol: TCP
+          envFrom:
+            - secretRef:
+                name: roundcube-secret
           env:
             - name: ROUNDCUBEMAIL_DB_TYPE
               value: "sqlite"

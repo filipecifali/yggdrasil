@@ -24,9 +24,10 @@ It provides a complete infrastructure and application stack inside Kubernetes:
 | **`kind`** | `>= 0.25.0` | Provisions the local 9-node HA Kubernetes cluster inside Docker |
 | **`kubectl`** | `>= 1.31.0` | Kubernetes CLI & Kustomize manifest validation (`kubectl kustomize`) |
 | **`flux`** | `>= 2.4.0` | Flux v2 CLI for bootstrapping and managing GitOps reconciliation |
+| **`helm`** | `>= 3.14.0` | Mirrors and pushes Helm charts as OCI artifacts into Harbor (`scripts/mirror-charts-to-harbor.sh`) |
+| **`crane`** | `>= 0.19.0` | Mirrors upstream container images into Harbor (`scripts/mirror-images-to-harbor.sh`) |
 | **`git`** & **`gh`** (GitHub CLI) | `>= 2.40` | Version control & authentication for initial Flux seed bootstrap |
 | **`curl`** | Any | Used by `scripts/pivot-to-forgejo.sh` to interact with the Forgejo REST API |
-    ├── mirror-images-to-harbor.sh      # Mirrors upstream application images into in-cluster Harbor
 | **`python3`** + **`python3-cryptography`** | `>= 3.10` | Used by `scripts/generate-dnssec-key.sh` to generate RFC 6605 `ECDSAP256SHA256` DNSSEC keys & `DS` records |
 | **`dig`** (`dnsutils`) *(Optional)* | Any | Testing CoreDNS authoritative zones, DNSSEC (`+dnssec`), `SPF`, `DKIM`, and `DMARC` records |
 
@@ -38,6 +39,9 @@ It provides a complete infrastructure and application stack inside Kubernetes:
 
 ```text
 yggdrasil/
+├── .forgejo/
+│   └── workflows/
+│       └── validate-gitops.yaml        # Forgejo Actions CI pipeline run by forgejo-runner on push/PR
 ├── clusters/
 │   └── kind/                           # Flux entrypoint for the local Kind cluster
 │       ├── flux-system/                # Managed by `flux bootstrap` (pinned to platform pool)
@@ -72,8 +76,10 @@ yggdrasil/
 │   └── cluster-config.yaml             # 9-node HA Kind cluster definition (3 CP + 3 platform + 3 apps)
 └── scripts/
     ├── bootstrap-kind.sh               # Helper script to create the Kind cluster & bootstrap Flux
+    ├── bootstrap-vault-secrets.sh      # Initializes/unseals Vault & seeds all app secrets into Vault KV-v2
     ├── pivot-to-forgejo.sh             # Seeds the repo into in-cluster Forgejo & pivots Flux source
     ├── mirror-images-to-harbor.sh      # Mirrors upstream application images into in-cluster Harbor
+    ├── mirror-charts-to-harbor.sh      # Mirrors upstream Helm charts as OCI artifacts into Harbor
     └── generate-dnssec-key.sh          # Helper script to generate ECDSAP256SHA256 DNSSEC keys & DS records
 ```
 
@@ -108,7 +114,6 @@ Once the cluster and `HelmRelease/forgejo` are running, execute:
 
 ```bash
 ./scripts/pivot-to-forgejo.sh
-    ├── mirror-images-to-harbor.sh      # Mirrors upstream application images into in-cluster Harbor
 ```
 
 Or run both initial bootstrap and the Forgejo pivot automatically:
@@ -128,7 +133,6 @@ When running your GitOps source of truth inside the same Kubernetes cluster it m
 2. **Ephemeral Kind Storage (`kind delete cluster` Wipes In-Cluster PVCs)**
    - *Issue:* In Kind, `PersistentVolumeClaim`s (`local-path-storage`) live inside the Kind node Docker containers. Running `kind delete cluster` permanently destroys the Forgejo PVC and any commits that existed *only* inside the cluster.
    - *Mitigation:* `scripts/pivot-to-forgejo.sh` keeps your external Git remote as `origin` and adds the in-cluster Forgejo instance as a separate `cluster` remote (`git push cluster main` & `git push origin main`). Alternatively, configure a **Push Mirror** inside Forgejo Repo Settings so every in-cluster commit is automatically mirrored to an external backup remote.
-    ├── mirror-images-to-harbor.sh      # Mirrors upstream application images into in-cluster Harbor
 
 3. **Self-Bricking via Broken Git Server Manifests**
    - *Issue:* If you push a misconfigured change to `apps/base/git/helmrelease.yaml` (or break `envoy-gateway-system` / `storage-system`) that causes the `forgejo` pod to crash or become unreachable, you cannot `git push` the revert commit to Forgejo to fix it.
@@ -137,7 +141,6 @@ When running your GitOps source of truth inside the same Kubernetes cluster it m
 4. **Internal vs. External Git URLs & TLS**
    - *Issue:* If Flux's `GitRepository/flux-system` points to the external ingress URL (`https://git.yggdrasil.local`), any hiccup in **Envoy Gateway**, **CoreDNS**, or **`cert-manager`** TLS renewal will also break Flux's ability to fetch fixes!
    - *Mitigation:* `scripts/pivot-to-forgejo.sh` intentionally points Flux's `GitRepository/flux-system` to the **cluster-internal service URL** (`http://forgejo-http.git-system.svc.cluster.local:3000/...`). This bypasses external DNS, TLS certificates, and the Edge Gateway so Flux can still reconcile and heal the cluster even if ingress or DNS is broken.
-    ├── mirror-images-to-harbor.sh      # Mirrors upstream application images into in-cluster Harbor
 
 ---
 
@@ -157,28 +160,72 @@ See the [**Documentation Index (`docs/README.md`)**](docs/README.md) for detaile
 - [**Observability & Autoscaling (`docs/observability-and-autoscaling.md`)**](docs/observability-and-autoscaling.md) — VictoriaMetrics (`VMSingle`/`VMAgent`) and KEDA `ScaledObject`
 - [**Web Hosting & MTA-STS (`docs/web-hosting.md`)**](docs/web-hosting.md) — Unprivileged NGINX (`readOnlyRootFilesystem`) and RFC 8461 MTA-STS policy hosting
 
-## Quickstart (WSL 2 + Kind + Flux)
+## End-to-End Bootstrap Process
 
-1. **Create the local Kind cluster:**
-   ```bash
-   kind create cluster --config kind/cluster-config.yaml
-   ```
+Bootstrapping Yggdrasil follows a deterministic 5-stage sequence so that all operators, Vault secrets, Harbor container images, Harbor OCI Helm charts, and in-cluster GitOps/CI components come up cleanly without circular dependencies:
 
-2. **Bootstrap Flux v2 with GitHub:**
-   ```bash
-   export GITHUB_TOKEN=$(gh auth token)
-   export GITHUB_USER=$(gh api user -q .login)
-   flux bootstrap github \
-     --owner="${GITHUB_USER}" \
-     --repository=yggdrasil \
-     --branch=main \
-     --path=./clusters/kind \
-     --personal \
-     --private=false
-   ```
+### Stage 1: Provision the 9-Node HA Kind Cluster & Flux v2 Controllers
+Creates the 9-node Kind topology (`3 control-plane`, `3 platform`, `3 apps` with `/etc/containerd/certs.d` enabled) and bootstraps Flux v2 into `flux-system` (`./scripts/bootstrap-kind.sh`):
+```bash
+kind create cluster --config kind/cluster-config.yaml
 
-3. **Optional — Pivot Flux to In-Cluster Forgejo:**
+export GITHUB_TOKEN=$(gh auth token)
+export GITHUB_USER=$(gh api user -q .login)
+flux bootstrap github \
+  --owner="${GITHUB_USER}" \
+  --repository=yggdrasil \
+  --branch=main \
+  --path=./clusters/kind \
+  --personal \
+  --private=false
+```
+
+### Stage 2: Initialize HashiCorp Vault & Seed Application Secrets
+Once `vault-0` is scheduled in `vault-system`, run `./scripts/bootstrap-vault-secrets.sh`. This script:
+1. Initializes Vault (`1` key share, `1` threshold) and stores recovery keys in `vault-system/secret/vault-init-keys`.
+2. Unseals `vault-0` so it reaches `1/1 Ready`.
+3. Enables the `kv-v2` secrets engine at `secret/` and configures Vault's `kubernetes` auth backend (`role: external-secrets`) for External Secrets Operator (`ClusterSecretStore/vault-backend`).
+4. Seeds all 7 application secret paths (`secret/dns/coredns-dnssec-keys`, `secret/registry/harbor-admin`, `secret/storage/seaweedfs-s3-iam`, `secret/storage/postgres-app`, `secret/git/forgejo-admin`, `secret/git/forgejo-runner`, `secret/mail/roundcube`) so every `ExternalSecret` across the cluster reaches `SecretSynced` (`Ready: True`).
+```bash
+./scripts/bootstrap-vault-secrets.sh
+```
+
+### Stage 3: Mirror Container Images into Harbor (`registry.yggdrasil.local/library/*`)
+Once `HelmRelease/harbor` is `Ready` in `registry-system`, run `./scripts/mirror-images-to-harbor.sh`. This script:
+1. Configures `/etc/containerd/certs.d/registry.yggdrasil.local/hosts.toml` on every Kind node pointing directly to Harbor's `ClusterIP` (`Service/harbor:80`).
+2. Uses `crane copy` to mirror all 12 application images (`envoy`, `coredns`, `vault`, `postgresql`, `seaweedfs`, `victoria-metrics`, `vmagent`, `forgejo`, `forgejo-runner`, `docker-mailserver`, `roundcubemail`, `nginx-unprivileged`) into Harbor (`library/*`).
+```bash
+./scripts/mirror-images-to-harbor.sh
+```
+
+### Stage 4: Mirror Helm Charts as OCI Artifacts into Harbor (`oci://harbor.registry-system.svc.cluster.local/library/*`)
+Run `./scripts/mirror-charts-to-harbor.sh` to pull all 12 upstream Helm charts and push them as OCI artifacts into Harbor (`library/*`) so Flux `source-controller` reconciles every `HelmRepository` (`type: oci`) locally:
+```bash
+./scripts/mirror-charts-to-harbor.sh
+```
+
+### Stage 5: Pivot Flux to In-Cluster Forgejo & Activate Forgejo Actions Runner
+Once `forgejo` and `forgejo-runner-0` are running in `git-system`, run `./scripts/pivot-to-forgejo.sh` to create the `yggdrasil` repository inside Forgejo, push the codebase to the `cluster` remote, and repoint Flux's `GitRepository/flux-system` to `http://forgejo-http.git-system.svc.cluster.local:3000`:
+```bash
+./scripts/pivot-to-forgejo.sh
+```
+
+---
+
+## Using the Forgejo Actions Runner (`.forgejo/workflows/validate-gitops.yaml`)
+
+`StatefulSet/forgejo-runner` (`forgejo-runner-0` in `git-system`) runs as a hardened non-root (`UID 1000`) runner registered against Forgejo in **rootless host-execution mode** (`--labels "ubuntu-latest:host"`).
+
+1. **How Registration Works:**
+   - `./scripts/bootstrap-vault-secrets.sh` generates a runner registration token from Forgejo (`gitea actions generate-runner-token`), writes it to Vault (`secret/git/forgejo-runner`), and syncs it via `ExternalSecret/forgejo-runner-secret`.
+   - `forgejo-runner-0` registers `/data/.runner` on its persistent volume (`runner-data-forgejo-runner-0`) and polls Forgejo for jobs matching `runs-on: ubuntu-latest`.
+2. **Triggering CI Workflows on Push:**
+   - Whenever commits are pushed to Forgejo (`git push cluster main`), Forgejo triggers `.forgejo/workflows/validate-gitops.yaml` on `forgejo-runner-0`.
+   - The workflow clones the pushed commit from in-cluster Forgejo and validates:
+     - **Zero Plaintext Secrets:** Fails if any plaintext `kind: Secret` manifest exists under `apps/` or `infrastructure/` (enforcing Vault + `ExternalSecret`).
+     - **Sovereign Harbor Mirrors:** Verifies all `HelmRepository` manifests in `infrastructure/base/helm-repositories.yaml` point to Harbor (`oci://harbor.registry-system.svc.cluster.local/library`).
+     - **Kustomize Overlays:** Verifies `kustomization.yaml` trees and renders `infrastructure/overlays/kind` and `apps/overlays/kind` (using `/data/bin/kubectl` if provisioned on the runner PVC).
+3. **Provisioning `kubectl` into the Runner PVC for Full Kustomize Rendering:**
    ```bash
-   ./scripts/pivot-to-forgejo.sh
-    ├── mirror-images-to-harbor.sh      # Mirrors upstream application images into in-cluster Harbor
+   kubectl -n git-system exec -i forgejo-runner-0 -- sh -c 'mkdir -p /data/bin && cat > /data/bin/kubectl && chmod +x /data/bin/kubectl' < "$(which kubectl)"
    ```

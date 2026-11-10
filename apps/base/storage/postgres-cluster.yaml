@@ -1,3 +1,31 @@
+# PostgreSQL application owner credentials pulled from HashiCorp Vault via ESO
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: yggdrasil-pg-app-user
+  namespace: storage-system
+  labels:
+    yggdrasil.io/realm: nidavellir
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: vault-backend
+  target:
+    name: yggdrasil-pg-app-user
+    creationPolicy: Owner
+    template:
+      type: kubernetes.io/basic-auth
+  data:
+    - secretKey: username
+      remoteRef:
+        key: storage/postgres-app
+        property: username
+    - secretKey: password
+      remoteRef:
+        key: storage/postgres-app
+        property: password
+---
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
@@ -27,6 +55,8 @@ spec:
     initdb:
       database: app
       owner: app
+      secret:
+        name: yggdrasil-pg-app-user
   postgresql:
     pg_hba:
       - hostssl all all all scram-sha-256

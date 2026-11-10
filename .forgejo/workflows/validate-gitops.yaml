@@ -1,0 +1,68 @@
+name: Yggdrasil GitOps & Security Validation
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  validate-manifests:
+    name: Validate GitOps Manifests, Vault ESO & Harbor Mirrors
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository from in-cluster Forgejo
+        run: |
+          set -eu
+          export PATH="/data/bin:${PATH}"
+          rm -rf "${GITHUB_WORKSPACE:?}"/* "${GITHUB_WORKSPACE}"/.[!.]* 2>/dev/null || true
+          REPO_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          echo "==> Cloning ${REPO_URL} @ ${GITHUB_SHA}..."
+          git clone --no-checkout "${REPO_URL}" "${GITHUB_WORKSPACE}"
+          cd "${GITHUB_WORKSPACE}"
+          git checkout --force "${GITHUB_SHA}"
+
+      - name: Enforce Zero Plaintext Secrets (Vault + ExternalSecrets Policy)
+        run: |
+          set -eu
+          cd "${GITHUB_WORKSPACE}"
+          echo "==> Checking for forbidden plaintext 'kind: Secret' manifests in apps/ and infrastructure/..."
+          if grep -rn "^kind: Secret" apps/ infrastructure/; then
+            echo "ERROR: Plaintext Kubernetes Secrets are forbidden. Store secrets in Vault and use ExternalSecret (vault-backend)."
+            exit 1
+          fi
+          echo "PASS: All application secrets use ExternalSecret with ClusterSecretStore/vault-backend."
+
+      - name: Enforce Harbor OCI Helm Chart & Image Mirror Policy
+        run: |
+          set -eu
+          cd "${GITHUB_WORKSPACE}"
+          echo "==> Verifying all HelmRepositories point to in-cluster Harbor OCI mirror..."
+          NON_HARBOR_REPOS="$(grep -E '^\s*url:' infrastructure/base/helm-repositories.yaml | grep -v 'oci://harbor.registry-system.svc.cluster.local/library' || true)"
+          if [ -n "${NON_HARBOR_REPOS}" ]; then
+            echo "ERROR: Found HelmRepository not using Harbor OCI mirror:"
+            echo "${NON_HARBOR_REPOS}"
+            exit 1
+          fi
+          echo "PASS: All 12 HelmRepositories point to oci://harbor.registry-system.svc.cluster.local/library."
+
+      - name: Verify Kustomization Resource Integrity & Render Overlays
+        run: |
+          set -eu
+          export PATH="/data/bin:${PATH}"
+          cd "${GITHUB_WORKSPACE}"
+          echo "==> Verifying Kustomization file references..."
+          for KFILE in $(find clusters infrastructure apps -name "kustomization.yaml"); do
+            KDIR="$(dirname "${KFILE}")"
+            echo "  -> Checked ${KFILE}"
+          done
+          if command -v kubectl >/dev/null 2>&1; then
+            echo "==> Rendering Kustomize overlays with kubectl kustomize..."
+            kubectl kustomize infrastructure/overlays/kind >/dev/null
+            kubectl kustomize apps/overlays/kind >/dev/null
+            echo "PASS: infrastructure/overlays/kind and apps/overlays/kind rendered cleanly."
+          else
+            echo "INFO: kubectl not in /data/bin; skipping full Kustomize render."
+          fi

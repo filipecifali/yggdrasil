@@ -1,14 +1,24 @@
-# Harbor Admin Secret (populated via ExternalSecret from Vault in production)
-apiVersion: v1
-kind: Secret
+# Harbor Admin Secret pulled from HashiCorp Vault via External Secrets Operator
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
 metadata:
   name: harbor-admin-credentials
   namespace: registry-system
   labels:
     yggdrasil.io/realm: sindri
-type: Opaque
-stringData:
-  HARBOR_ADMIN_PASSWORD: "ChangeMe123!"
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: vault-backend
+  target:
+    name: harbor-admin-credentials
+    creationPolicy: Owner
+  data:
+    - secretKey: HARBOR_ADMIN_PASSWORD
+      remoteRef:
+        key: registry/harbor-admin
+        property: HARBOR_ADMIN_PASSWORD
 ---
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
@@ -52,7 +62,10 @@ spec:
         ports:
           httpPort: 80
 
-    externalURL: https://registry.yggdrasil.local
+    # Use http:// scheme so harbor-core emits an http:// Www-Authenticate Bearer
+    # token realm for internal Kind containerd pulls over Service ClusterIP (:80)
+    # and local port-forward pushes; Envoy Gateway still terminates external TLS.
+    externalURL: http://registry.yggdrasil.local
 
     # Reference Kubernetes Secret instead of inline plaintext password
     existingSecretAdminPassword: harbor-admin-credentials
