@@ -7,6 +7,8 @@ metadata:
     yggdrasil.io/realm: hlidskjalf
 spec:
   retentionPeriod: "30d"
+  nodeSelector:
+    yggdrasil.io/node-pool: platform
   storage:
     accessModes:
       - ReadWriteOnce
@@ -24,6 +26,8 @@ metadata:
 spec:
   selectAllByDefault: true
   scrapeInterval: 30s
+  nodeSelector:
+    yggdrasil.io/node-pool: platform
   remoteWrite:
     - url: "http://vmsingle-yggdrasil-vmsingle.monitoring-system.svc.cluster.local:8429/api/v1/write"
 ---

@@ -15,16 +15,29 @@ spec:
         namespace: flux-system
       interval: 1h
   values:
-    # Deploy as a standalone authoritative DNS server (do not touch kube-system kube-dns)
+    # Deploy as a standalone authoritative DNS server on the platform node-pool
     isClusterService: false
     replicaCount: 1
 
+    nodeSelector:
+      yggdrasil.io/node-pool: platform
+
     serviceType: ClusterIP
 
-    # Mount DNSSEC signing keys from Kubernetes Secret
-    extraSecrets:
+    # Mount DNSSEC signing keys from Kubernetes Secret, mapping dnssec.key/.private to BIND key filenames
+    extraVolumes:
+      - name: coredns-dnssec-keys
+        secret:
+          secretName: coredns-dnssec-keys
+          items:
+            - key: dnssec.key
+              path: Kyggdrasil.local.+013+05707.key
+            - key: dnssec.private
+              path: Kyggdrasil.local.+013+05707.private
+    extraVolumeMounts:
       - name: coredns-dnssec-keys
         mountPath: /etc/coredns/keys
+        readOnly: true
 
     servers:
       # Authoritative zone for yggdrasil.local (Hardened + DNSSEC signed)
@@ -98,15 +111,13 @@ spec:
 
           ; =====================================================================
           ; 2. CAA (Certification Authority Authorization - RFC 8659)
-          ;    Restricts TLS certificate issuance strictly to Let's Encrypt
-          ;    and forbids wildcard certificates unless explicitly enabled.
           ; =====================================================================
           @                   IN  CAA     0 issue "letsencrypt.org"
           @                   IN  CAA     0 issuewild ";"
           @                   IN  CAA     0 iodef "mailto:security@yggdrasil.local"
 
           ; =====================================================================
-          ; 3. Web Hosting Records (Midgard / Bifrost) + Subdomain Anti-Spoofing
+          ; 3. Web, Storage, Registry, Vault, Metrics & Git Endpoints
           ; =====================================================================
           @                   IN  A       127.0.0.1
           www                 IN  CNAME   @
@@ -126,22 +137,18 @@ spec:
 
           ; =====================================================================
           ; 5. SPF (Sender Policy Framework - RFC 7208)
-          ;    Strict hard-fail (-all) for root domain and mail HELO host
           ; =====================================================================
           @                   IN  TXT     "v=spf1 mx a:mail.yggdrasil.local -all"
           mail                IN  TXT     "v=spf1 a -all"
 
           ; =====================================================================
           ; 6. DKIM (DomainKeys Identified Mail - RFC 6376)
-          ;    Selector 'mail' used by docker-mailserver / Rspamd.
-          ;    Replace p= with your generated public key from docker-mailserver.
           ; =====================================================================
           mail._domainkey     IN  TXT     ( "v=DKIM1; k=rsa; s=email; "
                                             "p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA000000000000000000000000" )
 
           ; =====================================================================
           ; 7. DMARC (Domain-based Message Auth, Reporting & Conformance - RFC 7489)
-          ;    Strict alignment (adkim=s, aspf=s) and reject policy (p=reject, sp=reject)
           ; =====================================================================
           _dmarc              IN  TXT     "v=DMARC1; p=reject; sp=reject; adkim=s; aspf=s; pct=100; fo=1; rua=mailto:postmaster@yggdrasil.local; ruf=mailto:postmaster@yggdrasil.local"
 
@@ -153,13 +160,11 @@ spec:
 
           ; =====================================================================
           ; 9. DANE / TLSA (RFC 6698 / RFC 7672)
-          ;    Usage 3 (DANE-EE), Selector 1 (SPKI), Matching 1 (SHA-256)
           ; =====================================================================
           _25._tcp.mail       IN  TLSA    3 1 1 0000000000000000000000000000000000000000000000000000000000000000
 
           ; =====================================================================
           ; 10. Mail Client Autodiscovery SRV Records (RFC 6186)
-          ;     Advertise encrypted Submission (587) & IMAPS (993); disable plaintext
           ; =====================================================================
           _submission._tcp    IN  SRV     0 1 587 mail.yggdrasil.local.
           _imaps._tcp         IN  SRV     0 1 993 mail.yggdrasil.local.

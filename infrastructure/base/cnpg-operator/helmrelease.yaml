@@ -20,3 +20,5 @@ spec:
     crds: CreateReplace
   values:
     replicaCount: 1
+    nodeSelector:
+      yggdrasil.io/node-pool: platform

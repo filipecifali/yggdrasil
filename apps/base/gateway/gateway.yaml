@@ -9,6 +9,9 @@ spec:
     kubernetes:
       envoyDeployment:
         replicas: 1
+        pod:
+          nodeSelector:
+            yggdrasil.io/node-pool: platform
       envoyService:
         type: ClusterIP
 ---

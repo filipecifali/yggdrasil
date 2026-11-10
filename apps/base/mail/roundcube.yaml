@@ -33,6 +33,8 @@ spec:
         yggdrasil.io/realm: huginn-muninn
     spec:
       automountServiceAccountToken: false
+      nodeSelector:
+        yggdrasil.io/node-pool: apps
       securityContext:
         seccompProfile:
           type: RuntimeDefault

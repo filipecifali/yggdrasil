@@ -23,3 +23,14 @@ spec:
       enabled: true
     config:
       enableGatewayAPI: true
+    nodeSelector:
+      yggdrasil.io/node-pool: platform
+    webhook:
+      nodeSelector:
+        yggdrasil.io/node-pool: platform
+    cainjector:
+      nodeSelector:
+        yggdrasil.io/node-pool: platform
+    startupapicheck:
+      nodeSelector:
+        yggdrasil.io/node-pool: platform

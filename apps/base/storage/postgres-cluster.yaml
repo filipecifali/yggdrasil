@@ -8,6 +8,9 @@ metadata:
 spec:
   description: "Shared PostgreSQL cluster managed by CloudNativePG"
   instances: 1
+  affinity:
+    nodeSelector:
+      yggdrasil.io/node-pool: platform
   storage:
     size: 5Gi
   monitoring:

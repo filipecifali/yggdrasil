@@ -21,6 +21,8 @@ spec:
     certificate: mail-server-tls
 
     deployment:
+      nodeSelector:
+        yggdrasil.io/node-pool: apps
       env:
         OVERRIDE_HOSTNAME: "mail.yggdrasil.local"
         LOG_LEVEL: "info"

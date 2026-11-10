@@ -16,6 +16,8 @@ spec:
       interval: 1h
   values:
     replicaCount: 1
+    nodeSelector:
+      yggdrasil.io/node-pool: apps
 
     persistence:
       enabled: true

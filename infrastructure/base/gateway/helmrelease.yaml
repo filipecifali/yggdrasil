@@ -21,3 +21,6 @@ spec:
   values:
     deployment:
       replicas: 1
+      pod:
+        nodeSelector:
+          yggdrasil.io/node-pool: platform

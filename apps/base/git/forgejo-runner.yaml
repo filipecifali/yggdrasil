@@ -31,6 +31,8 @@ spec:
         yggdrasil.io/realm: valhalla
     spec:
       automountServiceAccountToken: false
+      nodeSelector:
+        yggdrasil.io/node-pool: apps
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000

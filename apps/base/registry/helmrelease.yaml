@@ -26,6 +26,21 @@ spec:
         name: harbor
         namespace: flux-system
       interval: 1h
+  postRenderers:
+    - kustomize:
+        patches:
+          - target:
+              kind: "(Deployment|StatefulSet)"
+            patch: |-
+              apiVersion: apps/v1
+              kind: Deployment
+              metadata:
+                name: all
+              spec:
+                template:
+                  spec:
+                    nodeSelector:
+                      yggdrasil.io/node-pool: platform
   values:
     # Traffic is routed via Envoy Gateway (HTTPRoute -> Service/harbor:80)
     expose:

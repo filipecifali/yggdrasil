@@ -21,6 +21,8 @@ spec:
   values:
     crds:
       install: true
+    nodeSelector:
+      yggdrasil.io/node-pool: platform
     prometheus:
       metricServer:
         enabled: true

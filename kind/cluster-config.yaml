@@ -2,6 +2,9 @@ kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 name: yggdrasil
 nodes:
+  # ===========================================================================
+  # Control-Plane Node (Host Port Mappings for Local Simulation)
+  # ===========================================================================
   - role: control-plane
     kubeadmConfigPatches:
       - |
@@ -34,4 +37,35 @@ nodes:
       - containerPort: 30993
         hostPort: 993
         protocol: TCP
+
+  # ===========================================================================
+  # Platform Node Pool (3 Nodes — Operators, Edge Gateway, PKI, DNS, Monitoring, Storage)
+  # ===========================================================================
   - role: worker
+    labels:
+      yggdrasil.io/node-pool: platform
+      node-role.kubernetes.io/platform: ""
+  - role: worker
+    labels:
+      yggdrasil.io/node-pool: platform
+      node-role.kubernetes.io/platform: ""
+  - role: worker
+    labels:
+      yggdrasil.io/node-pool: platform
+      node-role.kubernetes.io/platform: ""
+
+  # ===========================================================================
+  # Application Node Pool (3 Nodes — Web, Mail, Git Forge, CI Runners)
+  # ===========================================================================
+  - role: worker
+    labels:
+      yggdrasil.io/node-pool: apps
+      node-role.kubernetes.io/apps: ""
+  - role: worker
+    labels:
+      yggdrasil.io/node-pool: apps
+      node-role.kubernetes.io/apps: ""
+  - role: worker
+    labels:
+      yggdrasil.io/node-pool: apps
+      node-role.kubernetes.io/apps: ""

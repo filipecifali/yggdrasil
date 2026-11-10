@@ -64,6 +64,8 @@ spec:
         yggdrasil.io/realm: midgard
     spec:
       automountServiceAccountToken: false
+      nodeSelector:
+        yggdrasil.io/node-pool: apps
       securityContext:
         runAsNonRoot: true
         runAsUser: 101

@@ -20,3 +20,11 @@ spec:
     crds: CreateReplace
   values:
     installCRDs: true
+    nodeSelector:
+      yggdrasil.io/node-pool: platform
+    webhook:
+      nodeSelector:
+        yggdrasil.io/node-pool: platform
+    certController:
+      nodeSelector:
+        yggdrasil.io/node-pool: platform

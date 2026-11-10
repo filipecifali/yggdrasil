@@ -18,6 +18,8 @@ spec:
     injector:
       enabled: false
     server:
+      nodeSelector: |
+        yggdrasil.io/node-pool: platform
       resources:
         requests:
           cpu: 100m

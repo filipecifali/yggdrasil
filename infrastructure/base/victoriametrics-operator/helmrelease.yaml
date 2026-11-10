@@ -23,3 +23,5 @@ spec:
       enabled: true
     operator:
       disable_prometheus_converter: false
+    nodeSelector:
+      yggdrasil.io/node-pool: platform

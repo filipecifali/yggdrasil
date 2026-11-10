@@ -38,9 +38,9 @@ metadata:
   namespace: dns-system
 type: Opaque
 stringData:
-  Kexample.com.+013+12345.key: |
+  example.com.key: |
     example.com. IN DNSKEY 257 3 13 <BASE64_PUBLIC_KEY>
-  Kexample.com.+013+12345.private: |
+  example.com.private: |
     Private-key-format: v1.3
     Algorithm: 13 (ECDSAP256SHA256)
     PrivateKey: <BASE64_PRIVATE_KEY>
