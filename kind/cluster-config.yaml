@@ -44,15 +44,12 @@ nodes:
   - role: worker
     labels:
       yggdrasil.io/node-pool: platform
-      node-role.kubernetes.io/platform: ""
   - role: worker
     labels:
       yggdrasil.io/node-pool: platform
-      node-role.kubernetes.io/platform: ""
   - role: worker
     labels:
       yggdrasil.io/node-pool: platform
-      node-role.kubernetes.io/platform: ""
 
   # ===========================================================================
   # Application Node Pool (3 Nodes — Web, Mail, Git Forge, CI Runners)
@@ -60,12 +57,9 @@ nodes:
   - role: worker
     labels:
       yggdrasil.io/node-pool: apps
-      node-role.kubernetes.io/apps: ""
   - role: worker
     labels:
       yggdrasil.io/node-pool: apps
-      node-role.kubernetes.io/apps: ""
   - role: worker
     labels:
       yggdrasil.io/node-pool: apps
-      node-role.kubernetes.io/apps: ""
