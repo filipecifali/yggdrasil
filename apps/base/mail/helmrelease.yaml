@@ -8,7 +8,7 @@ spec:
   chart:
     spec:
       chart: docker-mailserver
-      version: ">=4.0.0 <5.0.0"
+      version: "4.2.4"
       sourceRef:
         kind: HelmRepository
         name: docker-mailserver
@@ -39,9 +39,15 @@ spec:
         ENABLE_OPENDMARC: 0
 
     # Initial declarative mailbox configuration (SHA-512 hash for placeholder password 'ChangeMe123!')
-    configMap:
-      postfix-accounts.cf: |
-        postmaster@yggdrasil.local|{SHA512-CRYPT}$6$rounds=5000$yggdrasilsalt$V8M5bO3u8Y9j6u5z2x6q9G5T6k7P2L9W4m1N3c8v0B5x7Z2a4S6d8F0g2H4j6K8l0M2n4B6v8C0x2Z4a6S8d0/
-      postfix-virtual.cf: |
-        admin@yggdrasil.local postmaster@yggdrasil.local
-        security@yggdrasil.local postmaster@yggdrasil.local
+    configMaps:
+      postfix-accounts.cf:
+        create: true
+        path: postfix-accounts.cf
+        data: |
+          postmaster@yggdrasil.local|{SHA512-CRYPT}$6$rounds=5000$yggdrasilsalt$V8M5bO3u8Y9j6u5z2x6q9G5T6k7P2L9W4m1N3c8v0B5x7Z2a4S6d8F0g2H4j6K8l0M2n4B6v8C0x2Z4a6S8d0/
+      postfix-virtual.cf:
+        create: true
+        path: postfix-virtual.cf
+        data: |
+          admin@yggdrasil.local postmaster@yggdrasil.local
+          security@yggdrasil.local postmaster@yggdrasil.local

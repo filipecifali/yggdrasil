@@ -12,6 +12,7 @@ nodes:
   # (kube-proxy routes NodePorts across all cluster nodes).
   # ===========================================================================
   - role: control-plane
+    image: kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5
     kubeadmConfigPatches:
       - |
         kind: InitConfiguration
@@ -44,18 +45,23 @@ nodes:
         hostPort: 993
         protocol: TCP
   - role: control-plane
+    image: kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5
   - role: control-plane
+    image: kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5
 
   # ===========================================================================
   # Platform Node Pool (3 Nodes — Operators, Edge Gateway, PKI, DNS, Monitoring, Storage)
   # ===========================================================================
   - role: worker
+    image: kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5
     labels:
       yggdrasil.io/node-pool: platform
   - role: worker
+    image: kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5
     labels:
       yggdrasil.io/node-pool: platform
   - role: worker
+    image: kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5
     labels:
       yggdrasil.io/node-pool: platform
 
@@ -63,11 +69,14 @@ nodes:
   # Application Node Pool (3 Nodes — Web, Mail, Git Forge, CI Runners)
   # ===========================================================================
   - role: worker
+    image: kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5
     labels:
       yggdrasil.io/node-pool: apps
   - role: worker
+    image: kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5
     labels:
       yggdrasil.io/node-pool: apps
   - role: worker
+    image: kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5
     labels:
       yggdrasil.io/node-pool: apps

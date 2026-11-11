@@ -3,10 +3,10 @@ kind: Peer
 metadata:
   name: yggdrasil
 spec:
-  publicKey: I7gIqeZDKaM/8CQ5voO6cnJP/4oFF69Iacw40Oquv0Q=
+  publicKey: 8S7qMbDouP6/uA42RGFDy1TWmD1U5Oi4RS+bx/5iygM=
   endpoint:
     dnsOrIP:
-      ip: 172.18.0.5
+      ip: 172.18.0.6
     port: 51820
   allowedIPs:
     - 10.244.0.0/16

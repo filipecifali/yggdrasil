@@ -54,6 +54,9 @@ HARBOR_CLUSTER_IP="$(kubectl -n "${HARBOR_NS}" get svc harbor -o jsonpath='{.spe
 
 echo "==> Configuring containerd on all Kind nodes to resolve '${HARBOR_HOST}' to Harbor ClusterIP (${HARBOR_CLUSTER_IP})..."
 for NODE in $(kind get nodes --name "${CLUSTER_NAME}"); do
+  if [[ "${NODE}" == *load-balancer* ]]; then
+    continue
+  fi
   docker exec "${NODE}" mkdir -p "/etc/containerd/certs.d/${HARBOR_HOST}"
   docker exec -i "${NODE}" tee "/etc/containerd/certs.d/${HARBOR_HOST}/hosts.toml" >/dev/null << TOML
 server = "http://${HARBOR_CLUSTER_IP}"
