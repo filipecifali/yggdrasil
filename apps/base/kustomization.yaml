@@ -11,3 +11,5 @@ resources:
   - dns
   - mail
   - web
+  - auth
+  - chat

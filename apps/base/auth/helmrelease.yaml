@@ -1,0 +1,58 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: authentik
+  namespace: auth-system
+spec:
+  interval: 10m
+  chart:
+    spec:
+      chart: authentik
+      version: "2026.8.5"
+      sourceRef:
+        kind: HelmRepository
+        name: authentik
+        namespace: flux-system
+      interval: 1h
+  values:
+    global:
+      image:
+        repository: registry.yggdrasil.local/library/authentik-server
+        tag: "2026.8.5"
+      nodeSelector:
+        yggdrasil.io/node-pool: apps
+
+    authentik:
+      log_level: info
+      existingSecret:
+        secretName: authentik-secrets
+
+    server:
+      replicas: 1
+      nodeSelector:
+        yggdrasil.io/node-pool: apps
+      resources:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          cpu: 1000m
+          memory: 768Mi
+
+    worker:
+      replicas: 1
+      nodeSelector:
+        yggdrasil.io/node-pool: apps
+      resources:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          cpu: 1000m
+          memory: 768Mi
+
+    postgresql:
+      enabled: false
+
+    geoip:
+      enabled: false

@@ -59,6 +59,8 @@ CHARTS=(
   "http|https://helm.goharbor.io|harbor|1.19.4"
   "http|https://coredns.github.io/helm|coredns|1.50.4"
   "http|https://docker-mailserver.github.io/docker-mailserver-helm|docker-mailserver|4.2.4"
+  "http|https://charts.goauthentik.io|authentik|2026.8.5"
+  "oci|oci://ghcr.io/zulip/helm-charts|zulip|2.4.0"
 )
 
 for ENTRY in "${CHARTS[@]}"; do
@@ -77,4 +79,4 @@ for ENTRY in "${CHARTS[@]}"; do
   fi
 done
 
-echo "==> All 12 Helm charts mirrored to Harbor OCI registry (oci://harbor.registry-system.svc.cluster.local/${HARBOR_PROJECT})!"
+echo "==> All 14 Helm charts mirrored to Harbor OCI registry (oci://harbor.registry-system.svc.cluster.local/${HARBOR_PROJECT})!"

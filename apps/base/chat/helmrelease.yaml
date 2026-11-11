@@ -1,0 +1,112 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: zulip
+  namespace: chat-system
+  labels:
+    yggdrasil.io/realm: folkvangr
+spec:
+  interval: 10m
+  timeout: 10m
+  chart:
+    spec:
+      chart: zulip
+      version: "2.4.0"
+      sourceRef:
+        kind: HelmRepository
+        name: zulip
+        namespace: flux-system
+      interval: 1h
+  values:
+    image:
+      repository: registry.yggdrasil.local/library/zulip-server
+      tag: "12.4-0"
+
+    nodeSelector:
+      yggdrasil.io/node-pool: apps
+
+    zulip:
+      environment:
+        SETTING_EXTERNAL_HOST: "chat.yggdrasil.local"
+        SETTING_ADDITIONAL_HOSTS: "['zulip.yggdrasil.local']"
+        SETTING_ZULIP_ADMINISTRATOR: "admin@yggdrasil.local"
+        LOADBALANCER_IPS: "10.0.0.0/8,172.16.0.0/12"
+        SETTING_EMAIL_HOST: "docker-mailserver.mail-system.svc.cluster.local"
+        SETTING_EMAIL_PORT: "25"
+        SETTING_EMAIL_USE_TLS: "False"
+        SETTING_NOREPLY_EMAIL_ADDRESS: "noreply@yggdrasil.local"
+        SECRETS_secret_key:
+          valueFrom:
+            secretKeyRef:
+              name: zulip-secrets
+              key: secret-key
+
+      persistence:
+        enabled: true
+        size: 5Gi
+
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        cpu: 1000m
+        memory: 1536Mi
+
+    global:
+      security:
+        allowInsecureImages: true
+
+    postgresql:
+      enabled: true
+      primary:
+        containerSecurityContext:
+          runAsUser: 70
+          runAsGroup: 70
+          readOnlyRootFilesystem: false
+      image:
+        registry: registry.yggdrasil.local
+        repository: library/zulip-postgresql
+        tag: "14"
+      auth:
+        username: zulip
+        database: zulip
+        password: "ChangeMe123!"
+
+    rabbitmq:
+      enabled: true
+      image:
+        registry: registry.yggdrasil.local
+        repository: library/rabbitmq
+        tag: "4.1.3"
+      auth:
+        username: zulip
+        password: "ChangeMe123!"
+      persistence:
+        enabled: false
+
+    memcached:
+      enabled: true
+      image:
+        registry: registry.yggdrasil.local
+        repository: library/memcached
+        tag: "latest"
+      auth:
+        enabled: true
+        username: "zulip@localhost"
+        password: "ChangeMe123!"
+      containerSecurityContext:
+        readOnlyRootFilesystem: false
+
+    redis:
+      enabled: true
+      image:
+        registry: registry.yggdrasil.local
+        repository: library/redis
+        tag: "latest"
+      architecture: standalone
+      auth:
+        password: "ChangeMe123!"
+      master:
+        persistence:
+          enabled: false

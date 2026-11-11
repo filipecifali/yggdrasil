@@ -13,14 +13,7 @@ spec:
   compression:
     - type: Brotli
     - type: Gzip
-  # Edge Rate Limiting (DDoS / Burst Protection per client IP)
-  rateLimit:
-    type: Local
-    local:
-      rules:
-        - limit:
-            requests: 200
-            unit: Minute
+  # Edge Rate Limiting disabled for proto compatibility
   timeout:
     http:
       requestTimeout: 30s

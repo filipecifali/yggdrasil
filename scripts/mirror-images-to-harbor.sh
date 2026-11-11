@@ -20,7 +20,7 @@ fi
 
 # Upstream -> Harbor Local Mirror image map
 IMAGES=(
-  "docker.io/envoyproxy/envoy:distroless-v1.33.0|${HARBOR_HOST}/library/envoy:distroless-v1.33.0"
+  "docker.io/envoyproxy/envoy:distroless-v1.33.0|${HARBOR_HOST}/library/envoy:distroless-v1.40.2"
   "registry.k8s.io/coredns/coredns:v1.12.0|${HARBOR_HOST}/library/coredns:1.12.0"
   "docker.io/hashicorp/vault:1.19.0|${HARBOR_HOST}/library/vault:1.19.0"
   "ghcr.io/cloudnative-pg/postgresql:18.1|${HARBOR_HOST}/library/postgresql:18.1"
@@ -33,6 +33,13 @@ IMAGES=(
   "docker.io/roundcube/roundcubemail:1.6.9-apache|${HARBOR_HOST}/library/roundcubemail:1.6.9-apache"
   "docker.io/nginxinc/nginx-unprivileged:1.27-alpine|${HARBOR_HOST}/library/nginx-unprivileged:1.27-alpine"
   "docker.io/squat/kilo:0.7.0|${HARBOR_HOST}/library/kilo:0.7.0"
+  "ghcr.io/goauthentik/server:2026.8.5|${HARBOR_HOST}/library/authentik-server:2026.8.5"
+  "ghcr.io/goauthentik/ldap:2026.8.5|${HARBOR_HOST}/library/authentik-ldap:2026.8.5"
+  "ghcr.io/zulip/zulip-server:12.4-0|${HARBOR_HOST}/library/zulip-server:12.4-0"
+  "docker.io/zulip/zulip-postgresql:14|${HARBOR_HOST}/library/zulip-postgresql:14"
+  "docker.io/bitnamilegacy/rabbitmq:4.1.3|${HARBOR_HOST}/library/rabbitmq:4.1.3"
+  "docker.io/bitnamilegacy/memcached:latest|${HARBOR_HOST}/library/memcached:latest"
+  "docker.io/bitnamilegacy/redis:latest|${HARBOR_HOST}/library/redis:latest"
 )
 
 echo "==> Waiting for Harbor deployment in '${HARBOR_NS}' to become Ready..."

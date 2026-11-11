@@ -37,8 +37,15 @@ if [[ "${SEALED_STATUS}" == "true" ]]; then
   kubectl -n "${VAULT_NS}" exec "${VAULT_POD}" -- vault operator unseal "${UNSEAL_KEY}" >/dev/null
 fi
 
-echo "==> Waiting for ${VAULT_NS}/${VAULT_POD} to become Ready (1/1)..."
-kubectl -n "${VAULT_NS}" wait --for=condition=Ready "pod/${VAULT_POD}" --timeout=120s
+echo "==> Verifying Vault is responsive and unsealed..."
+for i in {1..30}; do
+  SEALED="$(kubectl -n "${VAULT_NS}" exec "${VAULT_POD}" -- vault status -format=json 2>/dev/null | grep -o '"sealed": *[a-z]*' | awk -F: '{gsub(/ /,"",$2); print $2}' || true)"
+  if [[ "${SEALED}" == "false" ]]; then
+    echo "==> Vault (${VAULT_NS}/${VAULT_POD}) is unsealed and ready!"
+    break
+  fi
+  sleep 2
+done
 
 # Obtain Forgejo runner registration token if Forgejo is running
 RUNNER_TOKEN="placeholder-forgejo-runner-token"
@@ -121,6 +128,32 @@ vault kv put secret/git/forgejo-runner \
 # 6. Roundcube Webmail DES Key (mail-system/roundcube-secret)
 vault kv put secret/mail/roundcube \
   ROUNDCUBEMAIL_DES_KEY="yggdrasil-roundcube-24b!"
+
+# 7. Authentik Identity & DB (auth-system/authentik-secrets & authentik-pg-user)
+vault kv put secret/auth/authentik-db \
+  username="authentik" \
+  password="ChangeMe123!"
+
+vault kv put secret/auth/authentik \
+  AUTHENTIK_SECRET_KEY="yggdrasil-authentik-secret-key-production-change-me-0123456789" \
+  AUTHENTIK_POSTGRESQL__HOST="authentik-pg-rw.auth-system.svc.cluster.local" \
+  AUTHENTIK_POSTGRESQL__NAME="authentik" \
+  AUTHENTIK_POSTGRESQL__USER="authentik" \
+  AUTHENTIK_POSTGRESQL__PASSWORD="ChangeMe123!" \
+  AUTHENTIK_POSTGRESQL__PORT="5432" \
+  AUTHENTIK_IN_CLUSTER="true" \
+  AUTHENTIK_ERROR_REPORTING__ENABLED="false" \
+  AUTHENTIK_EMAIL__HOST="docker-mailserver.mail-system.svc.cluster.local" \
+  AUTHENTIK_EMAIL__PORT="25" \
+  AUTHENTIK_EMAIL__FROM="authentik@yggdrasil.local"
+
+# 8. Zulip Threaded Chat (chat-system/zulip-secrets)
+vault kv put secret/chat/zulip \
+  secret-key="yggdrasil-zulip-secret-key-production-change-me-0123456789" \
+  postgres-password="ChangeMe123!" \
+  rabbitmq-password="ChangeMe123!" \
+  memcached-password="ChangeMe123!" \
+  redis-password="ChangeMe123!"
 VAULT_SH
 
 echo "==> All application secrets stored in HashiCorp Vault (secret/*)!"

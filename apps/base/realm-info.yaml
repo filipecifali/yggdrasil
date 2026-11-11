@@ -6,4 +6,4 @@ metadata:
 data:
   cluster: "yggdrasil"
   environment: "kind"
-  realms: "bifrost,mimir,huginn-muninn,midgard"
+  realms: "bifrost,mimir,huginn-muninn,midgard,gladsheim,folkvangr"

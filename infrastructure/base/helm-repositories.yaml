@@ -132,3 +132,25 @@ spec:
   interval: 1h
   insecure: true
   url: oci://harbor.registry-system.svc.cluster.local/library
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: authentik
+  namespace: flux-system
+spec:
+  type: oci
+  interval: 1h
+  insecure: true
+  url: oci://harbor.registry-system.svc.cluster.local/library
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: zulip
+  namespace: flux-system
+spec:
+  type: oci
+  interval: 1h
+  insecure: true
+  url: oci://harbor.registry-system.svc.cluster.local/library
