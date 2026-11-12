@@ -15,3 +15,7 @@ Thumbs.db
 *.swp
 *~
 .dnssec-keys/
+
+# Python bytecode
+__pycache__/
+*.py[cod]

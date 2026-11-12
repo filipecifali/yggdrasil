@@ -70,6 +70,13 @@ spec:
             - sh
             - -c
             - |
+              mkdir -p /data/bin
+              if [ ! -f /data/bin/kubectl ]; then
+                echo "Downloading kubectl into /data/bin/kubectl..."
+                wget -qO /data/bin/kubectl https://dl.k8s.io/release/v1.37.2/bin/linux/amd64/kubectl || true
+                chmod +x /data/bin/kubectl || true
+              fi
+
               while [ ! -f /data/.runner ]; do
                 echo "Attempting to register forgejo-runner with Forgejo..."
                 forgejo-runner register --no-interactive \

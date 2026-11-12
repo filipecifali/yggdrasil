@@ -1,4 +1,4 @@
-name: Yggdrasil GitOps & Security Validation
+name: Yggdrasil GitOps & Configuration Validation
 
 on:
   push:
@@ -9,8 +9,8 @@ on:
       - main
 
 jobs:
-  validate-manifests:
-    name: Validate GitOps Manifests, Vault ESO & Harbor Mirrors
+  validate-configs:
+    name: Validate GitOps Manifests, Security Policies & RBAC
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository from in-cluster Forgejo
@@ -23,6 +23,26 @@ jobs:
           git clone --no-checkout "${REPO_URL}" "${GITHUB_WORKSPACE}"
           cd "${GITHUB_WORKSPACE}"
           git checkout --force "${GITHUB_SHA}"
+
+      - name: Ensure test prerequisites (kubectl)
+        run: |
+          set -eu
+          export PATH="/data/bin:${PATH}"
+          if ! command -v kubectl >/dev/null 2>&1; then
+            echo "==> Downloading kubectl into /data/bin/kubectl..."
+            mkdir -p /data/bin
+            wget -qO /data/bin/kubectl https://dl.k8s.io/release/v1.37.2/bin/linux/amd64/kubectl
+            chmod +x /data/bin/kubectl
+          fi
+          kubectl version --client=true
+
+      - name: Run Automated Cluster Configuration Test Suite
+        run: |
+          set -eu
+          export PATH="/data/bin:${PATH}"
+          cd "${GITHUB_WORKSPACE}"
+          chmod +x scripts/test-cluster-configs.sh
+          ./scripts/test-cluster-configs.sh
 
       - name: Enforce Zero Plaintext Secrets (Vault + ExternalSecrets Policy)
         run: |
@@ -40,7 +60,9 @@ jobs:
           set -eu
           cd "${GITHUB_WORKSPACE}"
           echo "==> Checking for forbidden PII / local home paths in manifests and docs..."
-          if grep -rEn "/home/[a-zA-Z0-9]+" apps/ infrastructure/ docs/ clusters/ | grep -v "/home/runner" | grep -v "/home/vault"; then
+          if grep -rEn "(/home/(fcs|filip)|[a-zA-Z0-9._%+-]+@filip)" \
+             --exclude="test-cluster-configs.sh" \
+             apps/ infrastructure/ docs/ clusters/ scripts/ kind/; then
             echo "ERROR: Found forbidden personal user home path in repository files!"
             exit 1
           fi
@@ -64,16 +86,8 @@ jobs:
           set -eu
           export PATH="/data/bin:${PATH}"
           cd "${GITHUB_WORKSPACE}"
-          echo "==> Verifying Kustomization file references..."
-          for KFILE in $(find clusters infrastructure apps -name "kustomization.yaml"); do
-            KDIR="$(dirname "${KFILE}")"
-            echo "  -> Checked ${KFILE}"
-          done
-          if command -v kubectl >/dev/null 2>&1; then
-            echo "==> Rendering Kustomize overlays with kubectl kustomize..."
-            kubectl kustomize infrastructure/overlays/kind >/dev/null
-            kubectl kustomize apps/overlays/kind >/dev/null
-            echo "PASS: infrastructure/overlays/kind and apps/overlays/kind rendered cleanly."
-          else
-            echo "INFO: kubectl not in /data/bin; skipping full Kustomize render."
-          fi
+          echo "==> Rendering Kustomize overlays with kubectl kustomize..."
+          kubectl kustomize infrastructure/overlays/kind >/dev/null
+          kubectl kustomize apps/overlays/kind >/dev/null
+          kubectl kustomize clusters/kind/flux-system >/dev/null
+          echo "PASS: All overlays rendered cleanly."
