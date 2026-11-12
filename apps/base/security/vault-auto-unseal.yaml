@@ -28,14 +28,14 @@ spec:
             - |
               echo "==> Starting Vault Auto-Unseal Watcher daemon..."
               while true; do
-                STATUS=$(vault status -address=http://vault-0.vault-internal:8200 -format=json 2>/dev/null || true)
+                STATUS=$(vault status -address=http://vault.vault-system:8200 -format=json 2>/dev/null || true)
                 SEALED=$(echo "$STATUS" | grep -o '"sealed":true' || true)
                 if [ "$SEALED" = '"sealed":true' ]; then
                   echo "[$(date -u)] Detected Vault is sealed! Unsealing with local unseal key..."
                   UNSEAL_KEY=$(cat /etc/vault-keys/unseal-key)
-                  vault operator unseal -address=http://vault-0.vault-internal:8200 "$UNSEAL_KEY" || true
+                  vault operator unseal -address=http://vault.vault-system:8200 "$UNSEAL_KEY" || true
                 fi
-                sleep 15
+                sleep 10
               done
           resources:
             requests:
