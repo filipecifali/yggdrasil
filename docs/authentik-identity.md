@@ -148,3 +148,19 @@ dig @127.0.0.1 -p 5353 auth.yggdrasil.local +short
 curl -kIv --resolve auth.yggdrasil.local:443:127.0.0.1 https://auth.yggdrasil.local/
 curl -kfsSL --resolve auth.yggdrasil.local:443:127.0.0.1 https://auth.yggdrasil.local/setup
 ```
+
+---
+
+## 8. Kubernetes API OIDC Integration & RBAC
+
+Authentik provides sovereign OpenID Connect (OIDC) identity federation for `kubectl` and the Kubernetes API server.
+
+- **Provider**: `kubernetes-k8s-oidc`
+- **Application Slug**: `k8s` (`https://auth.yggdrasil.local/application/o/k8s/`)
+- **Client ID**: `kubernetes` (Client Type: `public`)
+- **Signing Algorithm**: `RS256` (asymmetric signature verifiable via cluster Root CA)
+- **Claim Mapping**: User groups in Authentik are mapped into the standard OIDC `groups` claim.
+- **Automated Configuration Script**: [`scripts/setup-authentik-k8s.py`](../scripts/setup-authentik-k8s.py)
+- **User Onboarding Script**: [`scripts/generate-user-kubeconfig.sh`](../scripts/generate-user-kubeconfig.sh)
+
+For complete RBAC scoping, multi-tenancy quotas, and onboarding runbooks, see [**User Management & Multi-Tenancy (`user-management-and-multi-tenancy.md`)**](user-management-and-multi-tenancy.md).

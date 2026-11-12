@@ -14,6 +14,9 @@ It provides a complete infrastructure and application stack inside Kubernetes:
 - **Observability & Autoscaling:** **VictoriaMetrics Operator** (`VMSingle` + `VMAgent`) + **KEDA** Event-Driven Autoscaler
 - **Cross-Cluster WireGuard Mesh:** **Kilo** (`squat/kilo`) WireGuard full-mesh overlay connecting Yggdrasil with external Kubernetes clusters (`jotunheim`)
 - **Web Hosting:** Unprivileged NGINX hosting & RFC 8461 MTA-STS policy endpoint
+- **Identity & RBAC:** **Authentik** OIDC user federation (`RS256`), tenant developer scoping, and automated client certificate generation
+- **Multi-Tenancy Hardening:** Explicit `ResourceQuota` and `LimitRange` guardrails, Pod Security Standards (`restricted`/`baseline`), and dropped capabilities across all workloads
+- **Automated Configuration Testing:** In-cluster **Forgejo Actions CI** running 54 automated configuration assertions on every push and pull request
 
 ---
 
@@ -227,12 +230,16 @@ Once `forgejo` and `forgejo-runner-0` are running in `git-system`, run `./script
    - `./scripts/bootstrap-vault-secrets.sh` generates a runner registration token from Forgejo (`gitea actions generate-runner-token`), writes it to Vault (`secret/git/forgejo-runner`), and syncs it via `ExternalSecret/forgejo-runner-secret`.
    - `forgejo-runner-0` registers `/data/.runner` on its persistent volume (`runner-data-forgejo-runner-0`) and polls Forgejo for jobs matching `runs-on: ubuntu-latest`.
 2. **Triggering CI Workflows on Push:**
-   - Whenever commits are pushed to Forgejo (`git push cluster main`), Forgejo triggers `.forgejo/workflows/validate-gitops.yaml` on `forgejo-runner-0`.
-   - The workflow clones the pushed commit from in-cluster Forgejo and validates:
-     - **Zero Plaintext Secrets:** Fails if any plaintext `kind: Secret` manifest exists under `apps/` or `infrastructure/` (enforcing Vault + `ExternalSecret`).
-     - **Sovereign Harbor Mirrors:** Verifies all `HelmRepository` manifests in `infrastructure/base/helm-repositories.yaml` point to Harbor (`oci://harbor.registry-system.svc.cluster.local/library`).
-     - **Kustomize Overlays:** Verifies `kustomization.yaml` trees and renders `infrastructure/overlays/kind` and `apps/overlays/kind` (using `/data/bin/kubectl` if provisioned on the runner PVC).
-3. **Provisioning `kubectl` into the Runner PVC for Full Kustomize Rendering:**
-   ```bash
-   kubectl -n git-system exec -i forgejo-runner-0 -- sh -c 'mkdir -p /data/bin && cat > /data/bin/kubectl && chmod +x /data/bin/kubectl' < "$(which kubectl)"
-   ```
+   - Whenever commits are pushed to Forgejo (`git push forgejo main`), Forgejo triggers `.forgejo/workflows/validate-gitops.yaml` on `forgejo-runner-0`.
+   - The workflow executes the comprehensive test suite ([`scripts/test-cluster-configs.sh`](file:///home/fcs/yggdrasil/scripts/test-cluster-configs.sh)) executing **54 automated assertions**:
+     - **Bash & Python Syntax:** `bash -n` and `py_compile` checks on all scripts.
+     - **Zero Plaintext Secrets:** Rejection of raw `kind: Secret` manifests.
+     - **Zero PII & Local Paths:** Rejection of hardcoded personal usernames or local paths.
+     - **Sovereign Harbor Mirrors:** Verifies all 12 `HelmRepository` manifests point to in-cluster Harbor OCI.
+     - **Kustomize Overlays:** Renders all 14 Kustomization targets cleanly with `kubectl kustomize`.
+     - **Multi-Tenancy Quotas:** Validates `ResourceQuota` and `LimitRange` coverage across tenant namespaces.
+     - **Pod Security Standards:** Confirms PSA namespace labels and workload privilege restrictions (`capabilities.drop: ALL`, `runAsNonRoot: true`, `seccompProfile: RuntimeDefault`).
+     - **RBAC Matrix Integrity:** Validates that `cluster-admin` is exclusively bound to `cluster-admins` and tenant developers are scoped strictly to their namespaces.
+     - **Ingress HTTPRoutes:** Validates Gateway API bindings against Bifrost.
+3. **Automatic `kubectl` Self-Bootstrapping:**
+   - The runner container automatically downloads and caches `kubectl` into `/data/bin/kubectl` on startup if not already present on the PVC.
