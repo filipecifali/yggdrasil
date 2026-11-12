@@ -30,6 +30,9 @@ spec:
         limits:
           cpu: 500m
           memory: 256Mi
+      readinessProbe:
+        enabled: true
+        path: "/v1/sys/health?standbyok=true"
       standalone:
         enabled: true
         config: |
