@@ -3,18 +3,21 @@
 ## Purpose
 **Harbor** (*Sindri*) acts as the central, sovereign container image registry and Helm OCI chart registry inside the cluster at `https://registry.yggdrasil.local`. All application workloads across `apps/base/` are configured to pull their container images from Harbor's local `library` mirror (`registry.yggdrasil.local/library/*`).
 
+The `library` project is hardened with **private access** (`public: false`) and user self-registration disabled. Containerd on all Kind nodes is pre-authenticated with internal registry credentials to permit unprivileged CRI image pulls without requiring per-pod `imagePullSecrets`.
+
 ## Manifests Location
 - `apps/base/registry/helmrelease.yaml` — Harbor `HelmRelease` & `Secret/harbor-admin-credentials`
 - `apps/base/registry/httproute.yaml` — Envoy Gateway `HTTPRoute` for `registry.yggdrasil.local`
 - `infrastructure/base/helm-repositories.yaml` — Flux `HelmRepository` (`type: oci`) definitions pointing to Harbor (`oci://harbor.registry-system.svc.cluster.local/library`)
-- `scripts/mirror-images-to-harbor.sh` — Configures Kind node `containerd` (`hosts.toml`) and mirrors upstream container images into Harbor
-- `scripts/mirror-charts-to-harbor.sh` — Pulls all 12 upstream Helm charts and pushes them as OCI artifacts into Harbor (`library/*`)
+- `scripts/configure-harbor-private.sh` — Hardens Harbor project to private, disables public self-registration, and configures node containerd credentials
+- `scripts/mirror-images-to-harbor.sh` — Configures Kind node `containerd` (`hosts.toml` & `config.toml`) and mirrors upstream container images into Harbor
+- `scripts/mirror-charts-to-harbor.sh` — Pulls all 18 upstream Helm charts and pushes them as OCI artifacts into Harbor (`library/*`)
 
 ## Mirrored Application Images (`registry.yggdrasil.local/library/*`)
 
 | Component | Upstream Source Image | Local Harbor Mirror Image |
 | :--- | :--- | :--- |
-| **Envoy Proxy (`gateway`)** | `docker.io/envoyproxy/envoy:distroless-v1.33.0` | `registry.yggdrasil.local/library/envoy:distroless-v1.33.0` |
+| **Envoy Proxy (`gateway`)** | `docker.io/envoyproxy/envoy:distroless-v1.33.0` | `registry.yggdrasil.local/library/envoy:distroless-v1.40.2` |
 | **CoreDNS (`dns`)** | `registry.k8s.io/coredns/coredns:v1.12.0` | `registry.yggdrasil.local/library/coredns:1.12.0` |
 | **HashiCorp Vault (`security`)** | `docker.io/hashicorp/vault:1.19.0` | `registry.yggdrasil.local/library/vault:1.19.0` |
 | **CloudNativePG (`storage`)** | `ghcr.io/cloudnative-pg/postgresql:18.1` | `registry.yggdrasil.local/library/postgresql:18.1` |
@@ -27,6 +30,18 @@
 | **Roundcube (`mail`)** | `docker.io/roundcube/roundcubemail:1.6.9-apache` | `registry.yggdrasil.local/library/roundcubemail:1.6.9-apache` |
 | **Web Hosting (`web`)** | `docker.io/nginxinc/nginx-unprivileged:1.27-alpine` | `registry.yggdrasil.local/library/nginx-unprivileged:1.27-alpine` |
 | **Kilo WireGuard Mesh (`vpn`)** | `docker.io/squat/kilo:0.7.0` | `registry.yggdrasil.local/library/kilo:0.7.0` |
+| **Authentik Server (`auth`)** | `ghcr.io/goauthentik/server:2026.8.5` | `registry.yggdrasil.local/library/authentik-server:2026.8.5` |
+| **Authentik LDAP Outpost (`auth`)** | `ghcr.io/goauthentik/ldap:2026.8.5` | `registry.yggdrasil.local/library/authentik-ldap:2026.8.5` |
+| **Zulip Server (`chat`)** | `ghcr.io/zulip/zulip-server:12.4-0` | `registry.yggdrasil.local/library/zulip-server:12.4-0` |
+| **Zulip PostgreSQL (`chat`)** | `docker.io/zulip/zulip-postgresql:14` | `registry.yggdrasil.local/library/zulip-postgresql:14` |
+| **RabbitMQ (`chat`)** | `docker.io/bitnamilegacy/rabbitmq:4.1.3` | `registry.yggdrasil.local/library/rabbitmq:4.1.3` |
+| **Memcached (`chat`)** | `docker.io/bitnamilegacy/memcached:latest` | `registry.yggdrasil.local/library/memcached:latest` |
+| **Redis (`chat`)** | `docker.io/bitnamilegacy/redis:latest` | `registry.yggdrasil.local/library/redis:latest` |
+| **Grafana (`monitoring`)** | `docker.io/grafana/grafana:12.3.1` | `registry.yggdrasil.local/library/grafana:12.3.1` |
+| **Node Exporter (`monitoring`)** | `quay.io/prometheus/node-exporter:v1.12.1` | `registry.yggdrasil.local/library/node-exporter:v1.12.1` |
+| **Kube-State-Metrics (`monitoring`)** | `registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.20.0` | `registry.yggdrasil.local/library/kube-state-metrics:v2.20.0` |
+| **VictoriaLogs (`monitoring`)** | `docker.io/victoriametrics/victoria-logs:v1.53.0` | `registry.yggdrasil.local/library/victoria-logs:v1.53.0` |
+| **Fluent Bit (`monitoring`)** | `cr.fluentbit.io/fluent/fluent-bit:5.1.3` | `registry.yggdrasil.local/library/fluent-bit:5.1.3` |
 
 ## Mirrored Helm Charts (`oci://harbor.registry-system.svc.cluster.local/library/*`)
 
@@ -44,16 +59,23 @@
 | `harbor` | `harbor` | `1.19.4` | `https://helm.goharbor.io` | `oci://harbor.registry-system.svc.cluster.local/library/harbor:1.19.4` |
 | `coredns` | `coredns` | `1.50.4` | `https://coredns.github.io/helm` | `oci://harbor.registry-system.svc.cluster.local/library/coredns:1.50.4` |
 | `docker-mailserver` | `docker-mailserver` | `4.2.4` | `https://docker-mailserver.github.io/docker-mailserver-helm` | `oci://harbor.registry-system.svc.cluster.local/library/docker-mailserver:4.2.4` |
+| `authentik` | `authentik` | `2026.8.5` | `https://charts.goauthentik.io` | `oci://harbor.registry-system.svc.cluster.local/library/authentik:2026.8.5` |
+| `zulip` | `zulip` | `2.4.0` | `oci://ghcr.io/zulip/helm-charts` | `oci://harbor.registry-system.svc.cluster.local/library/zulip:2.4.0` |
+| `grafana` | `grafana` | `10.5.15` | `https://grafana.github.io/helm-charts` | `oci://harbor.registry-system.svc.cluster.local/library/grafana:10.5.15` |
+| `prometheus-community` | `prometheus-node-exporter` | `5.1.0` | `https://prometheus-community.github.io/helm-charts` | `oci://harbor.registry-system.svc.cluster.local/library/prometheus-node-exporter:5.1.0` |
+| `prometheus-community` | `kube-state-metrics` | `9.0.0` | `https://prometheus-community.github.io/helm-charts` | `oci://harbor.registry-system.svc.cluster.local/library/kube-state-metrics:9.0.0` |
+| `fluent` | `fluent-bit` | `0.58.3` | `https://fluent.github.io/helm-charts` | `oci://harbor.registry-system.svc.cluster.local/library/fluent-bit:0.58.3` |
 
 ## Important Configuration
 
-1. **Kind `containerd` Registry Resolution (`certs.d`)**
+1. **Kind `containerd` Registry Resolution & Authentication**
    - `kind/cluster-config.yaml` enables `config_path = "/etc/containerd/certs.d"` on all 9 Kind nodes.
-   - `scripts/mirror-images-to-harbor.sh` writes `/etc/containerd/certs.d/registry.yggdrasil.local/hosts.toml` on every Kind node pointing directly to Harbor's `ClusterIP` (`Service/harbor` in `registry-system`), allowing `containerd` on every node to pull `registry.yggdrasil.local/library/*` images without external DNS or TLS bootstrap deadlocks.
+   - `scripts/configure-harbor-private.sh` and `scripts/mirror-images-to-harbor.sh` configure `/etc/containerd/certs.d/registry.yggdrasil.local/hosts.toml` and `/etc/containerd/config.toml` on every Kind node with internal Harbor credentials, allowing containerd to pull `registry.yggdrasil.local/library/*` images securely while blocking unauthenticated external pulls.
 
 2. **Populating Harbor (`scripts/mirror-images-to-harbor.sh` & `scripts/mirror-charts-to-harbor.sh`)**
    - Once Harbor is running in `registry-system`, execute:
      ```bash
+     ./scripts/configure-harbor-private.sh
      ./scripts/mirror-images-to-harbor.sh
      ./scripts/mirror-charts-to-harbor.sh
      ```

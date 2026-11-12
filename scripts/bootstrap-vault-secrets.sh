@@ -145,7 +145,8 @@ vault kv put secret/auth/authentik \
   AUTHENTIK_ERROR_REPORTING__ENABLED="false" \
   AUTHENTIK_EMAIL__HOST="docker-mailserver.mail-system.svc.cluster.local" \
   AUTHENTIK_EMAIL__PORT="25" \
-  AUTHENTIK_EMAIL__FROM="authentik@yggdrasil.local"
+  AUTHENTIK_EMAIL__FROM="authentik@yggdrasil.local" \
+  AUTHENTIK_HOST="https://auth.yggdrasil.local"
 
 # 8. Zulip Threaded Chat (chat-system/zulip-secrets)
 vault kv put secret/chat/zulip \
@@ -154,6 +155,11 @@ vault kv put secret/chat/zulip \
   rabbitmq-password="ChangeMe123!" \
   memcached-password="ChangeMe123!" \
   redis-password="ChangeMe123!"
+
+# 9. Grafana Dashboards (monitoring-system/grafana-secrets)
+vault kv put secret/monitoring/grafana \
+  admin-user="admin" \
+  admin-password="ChangeMe123!"
 VAULT_SH
 
 echo "==> All application secrets stored in HashiCorp Vault (secret/*)!"

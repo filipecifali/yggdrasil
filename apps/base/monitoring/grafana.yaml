@@ -1,0 +1,90 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: grafana
+  namespace: monitoring-system
+  labels:
+    yggdrasil.io/realm: hlidskjalf
+spec:
+  interval: 10m
+  timeout: 10m
+  chart:
+    spec:
+      chart: grafana
+      version: "10.5.15"
+      sourceRef:
+        kind: HelmRepository
+        name: grafana
+        namespace: flux-system
+      interval: 1h
+  values:
+    image:
+      registry: registry.yggdrasil.local
+      repository: library/grafana
+      tag: "12.3.1"
+
+    nodeSelector:
+      yggdrasil.io/node-pool: apps
+
+    admin:
+      existingSecret: grafana-secrets
+      userKey: admin-user
+      passwordKey: admin-password
+
+    persistence:
+      enabled: true
+      size: 5Gi
+
+    grafana.ini:
+      server:
+        root_url: "https://grafana.yggdrasil.local"
+        domain: "grafana.yggdrasil.local"
+      analytics:
+        reporting_enabled: false
+        check_for_updates: false
+        check_for_plugin_updates: false
+
+    datasources:
+      datasources.yaml:
+        apiVersion: 1
+        datasources:
+          - name: VictoriaMetrics
+            type: prometheus
+            access: proxy
+            url: http://vmsingle-yggdrasil-vmsingle.monitoring-system.svc.cluster.local:8429
+            isDefault: true
+            jsonData:
+              timeInterval: 15s
+
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: grafana-web
+  namespace: monitoring-system
+  labels:
+    app.kubernetes.io/name: grafana
+    yggdrasil.io/realm: hlidskjalf
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: bifrost
+      namespace: envoy-gateway-system
+  hostnames:
+    - "grafana.yggdrasil.local"
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: grafana
+          port: 80

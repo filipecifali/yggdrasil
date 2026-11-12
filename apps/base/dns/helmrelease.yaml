@@ -100,7 +100,7 @@ spec:
           $ORIGIN yggdrasil.local.
           $TTL 3600
           @       IN  SOA ns1.yggdrasil.local. hostmaster.yggdrasil.local. (
-                          2026111102 ; Serial (YYYYMMDDNN)
+                          2026111103 ; Serial (YYYYMMDDNN)
                           3600       ; Refresh (1h)
                           600        ; Retry (10m)
                           604800     ; Expire (1w)
@@ -135,6 +135,8 @@ spec:
           auth                IN  CNAME   @
           chat                IN  CNAME   @
           zulip               IN  CNAME   @
+          grafana             IN  CNAME   @
+          logs                IN  CNAME   @
 
           ; =====================================================================
           ; 4. Email Routing & HELO/EHLO Identity (Huginn & Muninn)

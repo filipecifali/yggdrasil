@@ -1,0 +1,54 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: prometheus-node-exporter
+  namespace: monitoring-system
+  labels:
+    yggdrasil.io/realm: hlidskjalf
+spec:
+  interval: 10m
+  timeout: 10m
+  chart:
+    spec:
+      chart: prometheus-node-exporter
+      version: "5.1.0"
+      sourceRef:
+        kind: HelmRepository
+        name: prometheus-node-exporter
+        namespace: flux-system
+      interval: 1h
+  values:
+    image:
+      registry: registry.yggdrasil.local
+      repository: library/node-exporter
+      tag: "v1.12.1"
+
+    hostNetwork: true
+    hostPID: true
+
+    prometheus:
+      monitor:
+        enabled: false
+
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 128Mi
+---
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMServiceScrape
+metadata:
+  name: prometheus-node-exporter
+  namespace: monitoring-system
+  labels:
+    yggdrasil.io/realm: hlidskjalf
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: prometheus-node-exporter
+  endpoints:
+    - port: metrics
+      interval: 30s

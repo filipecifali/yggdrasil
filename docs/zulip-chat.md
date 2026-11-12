@@ -71,3 +71,11 @@ To complete the initial realm setup:
 1. Navigate to `https://chat.yggdrasil.local/new/`.
 2. Enter the administrator email address (`admin@yggdrasil.local`).
 3. Follow the organization creation wizard to name the realm and invite initial users.
+
+## Alertmanager & Observability Integration
+
+Zulip provides a native incoming webhook integration for Prometheus Alertmanager / VMAlertmanager:
+- **Webhook Endpoint:** `http://zulip.chat-system.svc.cluster.local/api/v1/external/alertmanager?api_key=<bot_api_key>&stream=alerts`
+- **Topic Threading:** Alerts are grouped and threaded per topic automatically (e.g. topic `{{ .GroupLabels.alertname }}` or `{{ .GroupLabels.namespace }}`).
+- **Resolved Notices:** Sends green `[RESOLVED]` notifications to the thread when metric conditions recover.
+- **Runbook:** For full setup, Vault secret provisioning, and `VMAlert`/`VMRule` manifests, see [**Alerting Architecture: VMAlert, Alertmanager & Zulip Notifications (`vmalert-and-zulip-alerts.md`)**](vmalert-and-zulip-alerts.md).

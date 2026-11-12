@@ -26,6 +26,9 @@ spec:
       log_level: info
       existingSecret:
         secretName: authentik-secrets
+      env:
+        - name: AUTHENTIK_HOST
+          value: "https://auth.yggdrasil.local"
 
     server:
       replicas: 1

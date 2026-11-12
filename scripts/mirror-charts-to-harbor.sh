@@ -61,6 +61,10 @@ CHARTS=(
   "http|https://docker-mailserver.github.io/docker-mailserver-helm|docker-mailserver|4.2.4"
   "http|https://charts.goauthentik.io|authentik|2026.8.5"
   "oci|oci://ghcr.io/zulip/helm-charts|zulip|2.4.0"
+  "http|https://grafana.github.io/helm-charts|grafana|10.5.15"
+  "http|https://prometheus-community.github.io/helm-charts|prometheus-node-exporter|5.1.0"
+  "http|https://prometheus-community.github.io/helm-charts|kube-state-metrics|9.0.0"
+  "http|https://fluent.github.io/helm-charts|fluent-bit|0.58.3"
 )
 
 for ENTRY in "${CHARTS[@]}"; do
@@ -79,4 +83,4 @@ for ENTRY in "${CHARTS[@]}"; do
   fi
 done
 
-echo "==> All 14 Helm charts mirrored to Harbor OCI registry (oci://harbor.registry-system.svc.cluster.local/${HARBOR_PROJECT})!"
+echo "==> All 18 Helm charts mirrored to Harbor OCI registry (oci://harbor.registry-system.svc.cluster.local/${HARBOR_PROJECT})!"

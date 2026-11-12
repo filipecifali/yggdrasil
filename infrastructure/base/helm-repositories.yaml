@@ -154,3 +154,47 @@ spec:
   interval: 1h
   insecure: true
   url: oci://harbor.registry-system.svc.cluster.local/library
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: grafana
+  namespace: flux-system
+spec:
+  type: oci
+  interval: 1h
+  insecure: true
+  url: oci://harbor.registry-system.svc.cluster.local/library
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: prometheus-node-exporter
+  namespace: flux-system
+spec:
+  type: oci
+  interval: 1h
+  insecure: true
+  url: oci://harbor.registry-system.svc.cluster.local/library
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: kube-state-metrics
+  namespace: flux-system
+spec:
+  type: oci
+  interval: 1h
+  insecure: true
+  url: oci://harbor.registry-system.svc.cluster.local/library
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: fluent-bit
+  namespace: flux-system
+spec:
+  type: oci
+  interval: 1h
+  insecure: true
+  url: oci://harbor.registry-system.svc.cluster.local/library

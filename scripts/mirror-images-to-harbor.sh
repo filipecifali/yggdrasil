@@ -40,6 +40,11 @@ IMAGES=(
   "docker.io/bitnamilegacy/rabbitmq:4.1.3|${HARBOR_HOST}/library/rabbitmq:4.1.3"
   "docker.io/bitnamilegacy/memcached:latest|${HARBOR_HOST}/library/memcached:latest"
   "docker.io/bitnamilegacy/redis:latest|${HARBOR_HOST}/library/redis:latest"
+  "docker.io/grafana/grafana:12.3.1|${HARBOR_HOST}/library/grafana:12.3.1"
+  "quay.io/prometheus/node-exporter:v1.12.1|${HARBOR_HOST}/library/node-exporter:v1.12.1"
+  "registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.20.0|${HARBOR_HOST}/library/kube-state-metrics:v2.20.0"
+  "docker.io/victoriametrics/victoria-logs:v1.53.0|${HARBOR_HOST}/library/victoria-logs:v1.53.0"
+  "cr.fluentbit.io/fluent/fluent-bit:5.1.3|${HARBOR_HOST}/library/fluent-bit:5.1.3"
 )
 
 echo "==> Waiting for Harbor deployment in '${HARBOR_NS}' to become Ready..."
