@@ -19,8 +19,9 @@ jobs:
           export PATH="/data/bin:${PATH}"
           rm -rf "${GITHUB_WORKSPACE:?}"/* "${GITHUB_WORKSPACE}"/.[!.]* 2>/dev/null || true
           REPO_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
-          echo "==> Cloning ${REPO_URL} @ ${GITHUB_SHA}..."
-          git clone --no-checkout "${REPO_URL}" "${GITHUB_WORKSPACE}"
+          AUTH_URL="$(echo "${REPO_URL}" | sed -E "s|http(s)?://|http\1://${GITHUB_TOKEN}@|")"
+          echo "==> Cloning ${GITHUB_REPOSITORY} @ ${GITHUB_SHA}..."
+          git clone --no-checkout "${AUTH_URL}" "${GITHUB_WORKSPACE}"
           cd "${GITHUB_WORKSPACE}"
           git checkout --force "${GITHUB_SHA}"
 
