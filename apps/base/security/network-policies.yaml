@@ -26,6 +26,7 @@ spec:
                   - chat-system
                   - mail-system
                   - monitoring-system
+                  - cnpg-system
       ports:
         - protocol: TCP
           port: 5432
@@ -34,7 +35,7 @@ spec:
         - protocol: TCP
           port: 9187
 ---
-# Restrict ingress to Authentik database strictly to auth-system and monitoring
+# Restrict ingress to Authentik database strictly to auth-system, cnpg-system, and monitoring
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -60,6 +61,9 @@ spec:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: monitoring-system
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: cnpg-system
       ports:
         - protocol: TCP
           port: 8000
