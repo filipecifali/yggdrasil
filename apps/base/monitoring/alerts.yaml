@@ -1,0 +1,86 @@
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMRule
+metadata:
+  name: platform-infrastructure-alerts
+  namespace: monitoring-system
+  labels:
+    yggdrasil.io/realm: hlidskjalf
+spec:
+  groups:
+    - name: nodes.rules
+      rules:
+        - alert: NodeDiskPressure
+          expr: (node_filesystem_free_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) < 0.15
+          for: 5m
+          labels:
+            severity: critical
+            realm: hlidskjalf
+          annotations:
+            summary: "Node disk space is critically low (instance {{ $labels.instance }})"
+            description: "Root disk free space is below 15% (current: {{ $value | humanizePercentage }})."
+
+        - alert: NodeHighMemoryUsage
+          expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) > 0.85
+          for: 5m
+          labels:
+            severity: warning
+            realm: hlidskjalf
+          annotations:
+            summary: "Node memory usage high (instance {{ $labels.instance }})"
+            description: "Node memory usage is above 85% for 5 minutes."
+
+        - alert: NodeHighCPUUsage
+          expr: (100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)) > 85
+          for: 5m
+          labels:
+            severity: warning
+            realm: hlidskjalf
+          annotations:
+            summary: "Node CPU utilization high (instance {{ $labels.instance }})"
+            description: "Node CPU usage exceeds 85% over the last 5 minutes."
+
+    - name: workload.rules
+      rules:
+        - alert: PodCrashLooping
+          expr: increase(kube_pod_container_status_restarts_total[10m]) > 3
+          for: 2m
+          labels:
+            severity: critical
+            realm: hlidskjalf
+          annotations:
+            summary: "Pod is crash looping: {{ $labels.namespace }}/{{ $labels.pod }}"
+            description: "Container {{ $labels.container }} restarted more than 3 times in 10 minutes."
+
+        - alert: PodNotReady
+          expr: kube_pod_status_phase{phase=~"Pending|Failed"} == 1
+          for: 5m
+          labels:
+            severity: warning
+            realm: hlidskjalf
+          annotations:
+            summary: "Pod in {{ $labels.phase }} phase: {{ $labels.namespace }}/{{ $labels.pod }}"
+            description: "Pod has been in {{ $labels.phase }} state for more than 5 minutes."
+
+    - name: security_and_pki.rules
+      rules:
+        - alert: CertificateExpiringSoon
+          expr: (certmanager_certificate_expiration_timestamp_seconds - time()) < 1209600
+          for: 1h
+          labels:
+            severity: warning
+            realm: hlidskjalf
+          annotations:
+            summary: "TLS Certificate expiring soon: {{ $labels.name }}"
+            description: "Certificate {{ $labels.namespace }}/{{ $labels.name }} expires in less than 14 days."
+
+    - name: storage_and_db.rules
+      rules:
+        - alert: PostgresClusterDown
+          expr: cnpg_collector_up == 0
+          for: 2m
+          labels:
+            severity: critical
+            realm: hlidskjalf
+          annotations:
+            summary: "PostgreSQL cluster down: {{ $labels.namespace }}/{{ $labels.cluster }}"
+            description: "CloudNativePG collector is unreachable or PostgreSQL instance is down."

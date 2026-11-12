@@ -26,6 +26,32 @@ spec:
         key: storage/postgres-app
         property: password
 ---
+# CloudNativePG S3 backup credentials pulled from Vault via ESO
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: cnpg-s3-backup-secret
+  namespace: storage-system
+  labels:
+    yggdrasil.io/realm: nidavellir
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: vault-backend
+  target:
+    name: cnpg-s3-backup-secret
+    creationPolicy: Owner
+  data:
+    - secretKey: ACCESS_KEY_ID
+      remoteRef:
+        key: storage/s3-credentials
+        property: ACCESS_KEY_ID
+    - secretKey: ACCESS_SECRET_KEY
+      remoteRef:
+        key: storage/s3-credentials
+        property: ACCESS_SECRET_KEY
+---
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
@@ -44,6 +70,21 @@ spec:
     size: 5Gi
   monitoring:
     enablePodMonitor: true
+  backup:
+    barmanObjectStore:
+      destinationPath: "s3://cnpg-backups/yggdrasil-pg/"
+      endpointURL: "http://seaweedfs-s3.storage-system.svc.cluster.local:8333"
+      s3Credentials:
+        accessKeyId:
+          name: cnpg-s3-backup-secret
+          key: ACCESS_KEY_ID
+        secretAccessKey:
+          name: cnpg-s3-backup-secret
+          key: ACCESS_SECRET_KEY
+      wal:
+        compression: gzip
+        maxParallel: 1
+    retentionPolicy: "30d"
   resources:
     requests:
       cpu: 100m
@@ -68,3 +109,16 @@ spec:
       shared_buffers: "128MB"
       log_connections: "on"
       log_disconnections: "on"
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: yggdrasil-pg-daily-backup
+  namespace: storage-system
+  labels:
+    yggdrasil.io/realm: nidavellir
+spec:
+  schedule: "0 0 2 * * *"
+  backupOwnerReference: self
+  cluster:
+    name: yggdrasil-pg

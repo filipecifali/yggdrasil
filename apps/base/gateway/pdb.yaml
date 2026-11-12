@@ -1,0 +1,12 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: bifrost-gateway-pdb
+  namespace: envoy-gateway-system
+  labels:
+    yggdrasil.io/realm: bifrost
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      gateway.envoyproxy.io/owning-gateway-name: bifrost

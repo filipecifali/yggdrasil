@@ -3,3 +3,4 @@ kind: Kustomization
 resources:
   - dnssec-secret.yaml
   - helmrelease.yaml
+  - pdb.yaml

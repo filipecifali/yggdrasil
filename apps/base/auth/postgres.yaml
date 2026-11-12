@@ -26,6 +26,32 @@ spec:
         key: auth/authentik-db
         property: password
 ---
+# Authentik PostgreSQL S3 backup credentials pulled from Vault via ESO
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: authentik-cnpg-s3-backup-secret
+  namespace: auth-system
+  labels:
+    yggdrasil.io/realm: gladsheim
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: vault-backend
+  target:
+    name: authentik-cnpg-s3-backup-secret
+    creationPolicy: Owner
+  data:
+    - secretKey: ACCESS_KEY_ID
+      remoteRef:
+        key: storage/s3-credentials
+        property: ACCESS_KEY_ID
+    - secretKey: ACCESS_SECRET_KEY
+      remoteRef:
+        key: storage/s3-credentials
+        property: ACCESS_SECRET_KEY
+---
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
@@ -44,6 +70,21 @@ spec:
     size: 5Gi
   monitoring:
     enablePodMonitor: false
+  backup:
+    barmanObjectStore:
+      destinationPath: "s3://cnpg-backups/authentik-pg/"
+      endpointURL: "http://seaweedfs-s3.storage-system.svc.cluster.local:8333"
+      s3Credentials:
+        accessKeyId:
+          name: authentik-cnpg-s3-backup-secret
+          key: ACCESS_KEY_ID
+        secretAccessKey:
+          name: authentik-cnpg-s3-backup-secret
+          key: ACCESS_SECRET_KEY
+      wal:
+        compression: gzip
+        maxParallel: 1
+    retentionPolicy: "30d"
   resources:
     requests:
       cpu: 100m
@@ -68,3 +109,16 @@ spec:
       shared_buffers: "128MB"
       log_connections: "on"
       log_disconnections: "on"
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: authentik-pg-daily-backup
+  namespace: auth-system
+  labels:
+    yggdrasil.io/realm: gladsheim
+spec:
+  schedule: "0 0 3 * * *"
+  backupOwnerReference: self
+  cluster:
+    name: authentik-pg

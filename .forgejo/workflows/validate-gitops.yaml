@@ -35,6 +35,17 @@ jobs:
           fi
           echo "PASS: All application secrets use ExternalSecret with ClusterSecretStore/vault-backend."
 
+      - name: Enforce Zero PII and Local Usernames Policy
+        run: |
+          set -eu
+          cd "${GITHUB_WORKSPACE}"
+          echo "==> Checking for forbidden PII / local home paths in manifests and docs..."
+          if grep -rEn "/home/[a-zA-Z0-9]+" apps/ infrastructure/ docs/ clusters/ | grep -v "/home/runner" | grep -v "/home/vault"; then
+            echo "ERROR: Found forbidden personal user home path in repository files!"
+            exit 1
+          fi
+          echo "PASS: Zero PII detected."
+
       - name: Enforce Harbor OCI Helm Chart & Image Mirror Policy
         run: |
           set -eu

@@ -44,6 +44,7 @@ IMAGES=(
   "quay.io/prometheus/node-exporter:v1.12.1|${HARBOR_HOST}/library/node-exporter:v1.12.1"
   "registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.20.0|${HARBOR_HOST}/library/kube-state-metrics:v2.20.0"
   "docker.io/victoriametrics/victoria-logs:v1.53.0|${HARBOR_HOST}/library/victoria-logs:v1.53.0"
+  "docker.io/victoriametrics/vmalert:v1.115.0|${HARBOR_HOST}/library/vmalert:v1.115.0"
   "cr.fluentbit.io/fluent/fluent-bit:5.1.3|${HARBOR_HOST}/library/fluent-bit:5.1.3"
 )
 

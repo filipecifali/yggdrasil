@@ -111,6 +111,11 @@ vault kv put secret/storage/seaweedfs-s3-iam \
   ]
 }'
 
+# 3b. S3 Credentials for CloudNativePG & Vault automated backups
+vault kv put secret/storage/s3-credentials \
+  ACCESS_KEY_ID="yggdrasil-local-access-key" \
+  ACCESS_SECRET_KEY="yggdrasil-local-secret-key-change-me"
+
 # 4. CloudNativePG PostgreSQL App User (storage-system/yggdrasil-pg-app-user)
 vault kv put secret/storage/postgres-app \
   username="app" \

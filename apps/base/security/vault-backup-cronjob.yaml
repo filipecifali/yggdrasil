@@ -1,0 +1,59 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: vault-raft-s3-backup
+  namespace: vault-system
+  labels:
+    app.kubernetes.io/name: vault-raft-s3-backup
+    yggdrasil.io/realm: valhalla
+spec:
+  schedule: "0 */6 * * *"
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: vault-raft-s3-backup
+            yggdrasil.io/realm: valhalla
+        spec:
+          restartPolicy: OnFailure
+          nodeSelector:
+            yggdrasil.io/node-pool: platform
+          containers:
+            - name: raft-backup
+              image: registry.yggdrasil.local/library/vault:1.19.0
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -eu
+                  TIMESTAMP=$(date +%Y%m%d%H%M)
+                  SNAPSHOT_FILE="/tmp/vault-snapshot-${TIMESTAMP}.snap"
+                  ROOT_TOKEN=$(cat /etc/vault-keys/root-token)
+                  echo "==> Taking Vault Raft snapshot..."
+                  VAULT_TOKEN="${ROOT_TOKEN}" vault operator raft snapshot save -address=http://vault-0.vault-internal:8200 "${SNAPSHOT_FILE}"
+                  echo "==> Uploading snapshot to SeaweedFS S3 (/buckets/vault-backups)..."
+                  curl -sf -F "file=@${SNAPSHOT_FILE}" "http://seaweedfs-filer.storage-system.svc.cluster.local:8888/buckets/vault-backups/vault-snapshot-${TIMESTAMP}.snap"
+                  rm -f "${SNAPSHOT_FILE}"
+                  echo "==> Vault Raft backup completed successfully: vault-snapshot-${TIMESTAMP}.snap"
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+                limits:
+                  cpu: 200m
+                  memory: 128Mi
+              volumeMounts:
+                - name: vault-init-keys
+                  mountPath: /etc/vault-keys
+                  readOnly: true
+          volumes:
+            - name: vault-init-keys
+              secret:
+                secretName: vault-init-keys
+                items:
+                  - key: root-token
+                    path: root-token

@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vault-auto-unseal
+  namespace: vault-system
+  labels:
+    app.kubernetes.io/name: vault-auto-unseal
+    yggdrasil.io/realm: valhalla
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: vault-auto-unseal
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: vault-auto-unseal
+        yggdrasil.io/realm: valhalla
+    spec:
+      nodeSelector:
+        yggdrasil.io/node-pool: platform
+      containers:
+        - name: unseal-watcher
+          image: registry.yggdrasil.local/library/vault:1.19.0
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "==> Starting Vault Auto-Unseal Watcher daemon..."
+              while true; do
+                STATUS=$(vault status -address=http://vault-0.vault-internal:8200 -format=json 2>/dev/null || true)
+                SEALED=$(echo "$STATUS" | grep -o '"sealed":true' || true)
+                if [ "$SEALED" = '"sealed":true' ]; then
+                  echo "[$(date -u)] Detected Vault is sealed! Unsealing with local unseal key..."
+                  UNSEAL_KEY=$(cat /etc/vault-keys/unseal-key)
+                  vault operator unseal -address=http://vault-0.vault-internal:8200 "$UNSEAL_KEY" || true
+                fi
+                sleep 15
+              done
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+          volumeMounts:
+            - name: vault-init-keys
+              mountPath: /etc/vault-keys
+              readOnly: true
+      volumes:
+        - name: vault-init-keys
+          secret:
+            secretName: vault-init-keys
+            items:
+              - key: unseal-key
+                path: unseal-key

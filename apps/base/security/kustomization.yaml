@@ -5,3 +5,5 @@ resources:
   - vault-helmrelease.yaml
   - cluster-secret-store.yaml
   - network-policies.yaml
+  - vault-auto-unseal.yaml
+  - vault-backup-cronjob.yaml

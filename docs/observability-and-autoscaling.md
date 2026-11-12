@@ -16,6 +16,8 @@
 - `apps/base/monitoring/kube-state-metrics.yaml` — `HelmRelease/kube-state-metrics` (`9.0.0`) & `VMServiceScrape`
 - `apps/base/monitoring/victorialogs.yaml` — `VLSingle/yggdrasil-vlsingle` (`v1.53.0`) & `HTTPRoute/victorialogs-ui` (`logs.yggdrasil.local`)
 - `apps/base/monitoring/fluent-bit.yaml` — `HelmRelease/fluent-bit` (`0.58.3`) DaemonSet streaming container logs to VictoriaLogs
+- `apps/base/monitoring/vmalert.yaml` — `VMAlert/yggdrasil-vmalert` alerting engine (`v1.115.0`)
+- `apps/base/monitoring/alerts.yaml` — `VMRule/platform-infrastructure-alerts` active alert definitions
 - `infrastructure/base/keda/helmrelease.yaml` — KEDA Operator & Metrics Server
 - `apps/base/web/scaledobject.yaml` — `ScaledObject/yggdrasil-web-autoscaler`
 

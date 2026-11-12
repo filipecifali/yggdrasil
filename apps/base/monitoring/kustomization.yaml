@@ -9,3 +9,5 @@ resources:
   - victorialogs.yaml
   - fluent-bit.yaml
   - securitypolicy.yaml
+  - vmalert.yaml
+  - alerts.yaml

@@ -1,0 +1,28 @@
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMAlert
+metadata:
+  name: yggdrasil-vmalert
+  namespace: monitoring-system
+  labels:
+    yggdrasil.io/realm: hlidskjalf
+spec:
+  image:
+    repository: registry.yggdrasil.local/library/vmalert
+    tag: v1.115.0
+  evaluationInterval: 15s
+  datasource:
+    url: "http://vmsingle-yggdrasil-vmsingle.monitoring-system.svc.cluster.local:8429"
+  remoteWrite:
+    url: "http://vmsingle-yggdrasil-vmsingle.monitoring-system.svc.cluster.local:8429"
+  remoteRead:
+    url: "http://vmsingle-yggdrasil-vmsingle.monitoring-system.svc.cluster.local:8429"
+  selectAllByDefault: true
+  nodeSelector:
+    yggdrasil.io/node-pool: platform
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
