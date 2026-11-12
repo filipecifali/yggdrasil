@@ -22,35 +22,45 @@ spec:
           restartPolicy: OnFailure
           nodeSelector:
             yggdrasil.io/node-pool: platform
-          containers:
-            - name: raft-backup
+          initContainers:
+            - name: take-snapshot
               image: registry.yggdrasil.local/library/vault:1.19.0
               command:
                 - /bin/sh
                 - -c
                 - |
                   set -eu
-                  TIMESTAMP=$(date +%Y%m%d%H%M)
-                  SNAPSHOT_FILE="/tmp/vault-snapshot-${TIMESTAMP}.snap"
                   ROOT_TOKEN=$(cat /etc/vault-keys/root-token)
                   echo "==> Taking Vault Raft snapshot..."
-                  VAULT_TOKEN="${ROOT_TOKEN}" vault operator raft snapshot save -address=http://vault-0.vault-internal:8200 "${SNAPSHOT_FILE}"
-                  echo "==> Uploading snapshot to SeaweedFS S3 (/buckets/vault-backups)..."
-                  curl -sf -F "file=@${SNAPSHOT_FILE}" "http://seaweedfs-filer.storage-system.svc.cluster.local:8888/buckets/vault-backups/vault-snapshot-${TIMESTAMP}.snap"
-                  rm -f "${SNAPSHOT_FILE}"
-                  echo "==> Vault Raft backup completed successfully: vault-snapshot-${TIMESTAMP}.snap"
-              resources:
-                requests:
-                  cpu: 50m
-                  memory: 64Mi
-                limits:
-                  cpu: 200m
-                  memory: 128Mi
+                  VAULT_TOKEN="${ROOT_TOKEN}" vault operator raft snapshot save -address=http://vault.vault-system:8200 /backup/vault-raft.snap
+                  chmod 666 /backup/vault-raft.snap
+                  echo "==> Snapshot saved and permissions set to 666: /backup/vault-raft.snap"
               volumeMounts:
+                - name: backup-volume
+                  mountPath: /backup
                 - name: vault-init-keys
                   mountPath: /etc/vault-keys
                   readOnly: true
+          containers:
+            - name: upload-s3
+              image: registry.yggdrasil.local/library/curl:8.12.1
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -eu
+                  TIMESTAMP=$(date +%Y%m%d%H%M)
+                  TARGET="vault-snapshot-${TIMESTAMP}.snap"
+                  echo "==> Uploading snapshot to SeaweedFS S3 (/buckets/vault-backups/${TARGET})..."
+                  curl -sf -F "file=@/backup/vault-raft.snap;filename=${TARGET}" \
+                    "http://seaweedfs-filer.storage-system.svc.cluster.local:8888/buckets/vault-backups/"
+                  echo "==> Vault Raft backup completed successfully: ${TARGET}"
+              volumeMounts:
+                - name: backup-volume
+                  mountPath: /backup
           volumes:
+            - name: backup-volume
+              emptyDir: {}
             - name: vault-init-keys
               secret:
                 secretName: vault-init-keys
