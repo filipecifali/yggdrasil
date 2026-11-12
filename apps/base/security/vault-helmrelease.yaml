@@ -33,6 +33,15 @@ spec:
       readinessProbe:
         enabled: true
         path: "/v1/sys/health?standbyok=true"
+      securityContext:
+        pod:
+          seccompProfile:
+            type: RuntimeDefault
+        container:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
       standalone:
         enabled: true
         config: |

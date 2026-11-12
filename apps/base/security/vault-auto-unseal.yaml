@@ -19,9 +19,22 @@ spec:
     spec:
       nodeSelector:
         yggdrasil.io/node-pool: platform
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 100
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: unseal-watcher
           image: registry.yggdrasil.local/library/vault:1.19.0
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
           command:
             - /bin/sh
             - -c

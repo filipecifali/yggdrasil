@@ -7,3 +7,4 @@ resources:
   - network-policies.yaml
   - vault-auto-unseal.yaml
   - vault-backup-cronjob.yaml
+  - rbac-scopes.yaml

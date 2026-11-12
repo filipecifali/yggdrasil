@@ -19,6 +19,15 @@ nodes:
         nodeRegistration:
           kubeletExtraArgs:
             node-labels: "ingress-ready=true"
+      - |
+        kind: ClusterConfiguration
+        apiServer:
+          extraArgs:
+            oidc-issuer-url: "https://auth.yggdrasil.local/application/o/k8s/"
+            oidc-client-id: "kubernetes"
+            oidc-username-claim: "preferred_username"
+            oidc-groups-claim: "groups"
+            oidc-ca-file: "/etc/kubernetes/pki/yggdrasil-ca.crt"
     extraPortMappings:
       # Web Hosting & Edge Gateway (HTTP / HTTPS via Envoy Gateway NodePorts)
       - containerPort: 30080

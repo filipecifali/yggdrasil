@@ -22,9 +22,22 @@ spec:
           restartPolicy: OnFailure
           nodeSelector:
             yggdrasil.io/node-pool: platform
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 100
+            runAsGroup: 1000
+            fsGroup: 1000
+            seccompProfile:
+              type: RuntimeDefault
           initContainers:
             - name: take-snapshot
               image: registry.yggdrasil.local/library/vault:1.19.0
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop:
+                    - ALL
               command:
                 - /bin/sh
                 - -c
@@ -44,6 +57,12 @@ spec:
           containers:
             - name: upload-s3
               image: registry.yggdrasil.local/library/curl:8.12.1
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop:
+                    - ALL
               command:
                 - /bin/sh
                 - -c

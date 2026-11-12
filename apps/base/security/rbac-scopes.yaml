@@ -1,0 +1,181 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: yggdrasil-cluster-admins
+  labels:
+    yggdrasil.io/realm: asgard
+    yggdrasil.io/tier: security
+subjects:
+  - kind: Group
+    name: cluster-admins
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: cluster-admin
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: yggdrasil-platform-operator
+  labels:
+    yggdrasil.io/realm: asgard
+    yggdrasil.io/tier: security
+rules:
+  # Core Infrastructure & Workload Management
+  - apiGroups: [""]
+    resources:
+      - namespaces
+      - nodes
+      - persistentvolumes
+      - persistentvolumeclaims
+      - configmaps
+      - secrets
+      - services
+      - endpoints
+      - pods
+      - pods/log
+      - pods/status
+      - pods/exec
+      - pods/portforward
+      - events
+      - limitranges
+      - resourcequotas
+    verbs: ["*"]
+  # Apps & Batch Controllers
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets", "daemonsets", "replicasets"]
+    verbs: ["*"]
+  - apiGroups: ["batch"]
+    resources: ["jobs", "cronjobs"]
+    verbs: ["*"]
+  # Networking
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["networkpolicies", "ingressclasses", "ingresses"]
+    verbs: ["*"]
+  - apiGroups: ["gateway.networking.k8s.io"]
+    resources: ["*"]
+    verbs: ["*"]
+  # GitOps / Flux Toolkit
+  - apiGroups:
+      - "kustomize.toolkit.fluxcd.io"
+      - "helm.toolkit.fluxcd.io"
+      - "source.toolkit.fluxcd.io"
+      - "notification.toolkit.fluxcd.io"
+    resources: ["*"]
+    verbs: ["*"]
+  # Cert-Manager PKI
+  - apiGroups: ["cert-manager.io", "acme.cert-manager.io"]
+    resources: ["*"]
+    verbs: ["*"]
+  # External Secrets & Vault
+  - apiGroups: ["external-secrets.io"]
+    resources: ["*"]
+    verbs: ["*"]
+  # Monitoring & VictoriaMetrics
+  - apiGroups: ["operator.victoriametrics.com", "monitoring.coreos.com"]
+    resources: ["*"]
+    verbs: ["*"]
+  # CloudNative-PG Operator
+  - apiGroups: ["postgresql.cnpg.io"]
+    resources: ["*"]
+    verbs: ["*"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: yggdrasil-platform-ops
+  labels:
+    yggdrasil.io/realm: asgard
+    yggdrasil.io/tier: security
+subjects:
+  - kind: Group
+    name: platform-ops
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: yggdrasil-platform-operator
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: yggdrasil-auditors
+  labels:
+    yggdrasil.io/realm: asgard
+    yggdrasil.io/tier: security
+subjects:
+  - kind: Group
+    name: auditors
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: view
+  apiGroup: rbac.authorization.k8s.io
+---
+# ==============================================================================
+# Tenant Developer Roles (Scoped to designated tenant namespaces)
+# ==============================================================================
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: dev-web-admin
+  namespace: web-system
+  labels:
+    yggdrasil.io/realm: midgard
+subjects:
+  - kind: Group
+    name: dev-web
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: admin
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: dev-git-admin
+  namespace: git-system
+  labels:
+    yggdrasil.io/realm: valhalla
+subjects:
+  - kind: Group
+    name: dev-git
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: admin
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: dev-chat-admin
+  namespace: chat-system
+  labels:
+    yggdrasil.io/realm: folkvangr
+subjects:
+  - kind: Group
+    name: dev-chat
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: admin
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: dev-mail-admin
+  namespace: mail-system
+  labels:
+    yggdrasil.io/realm: huginn-muninn
+subjects:
+  - kind: Group
+    name: dev-mail
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: admin
+  apiGroup: rbac.authorization.k8s.io

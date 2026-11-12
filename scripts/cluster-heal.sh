@@ -110,4 +110,25 @@ if kubectl -n vault-system get pod vault-0 >/dev/null 2>&1; then
   fi
 fi
 
-echo "==> 5. Cluster healthcheck completed successfully."
+echo "==> 5. Verifying Control Plane OIDC configuration..."
+if kubectl get secret -n cert-manager yggdrasil-root-ca-secret >/dev/null 2>&1; then
+  GATEWAY_IP="$(kubectl get svc -n envoy-gateway-system envoy-envoy-gateway-system-bifrost-7e8f3d0b -o jsonpath='{.spec.clusterIP}' 2>/dev/null || true)"
+  if [[ -n "${GATEWAY_IP}" ]]; then
+    for CP in "yggdrasil-control-plane" "yggdrasil-control-plane2" "yggdrasil-control-plane3"; do
+      if docker inspect "${CP}" >/dev/null 2>&1; then
+        docker exec "${CP}" bash -c "grep -q 'auth.yggdrasil.local' /etc/hosts || echo '${GATEWAY_IP} auth.yggdrasil.local' >> /etc/hosts"
+        if ! docker exec "${CP}" grep -q "oidc-issuer-url" /etc/kubernetes/manifests/kube-apiserver.yaml; then
+          echo "  [REPAIR] Injecting missing OIDC flags on ${CP}..."
+          TMP_CA="$(mktemp)"
+          kubectl get secret -n cert-manager yggdrasil-root-ca-secret -o jsonpath='{.data.ca\.crt}' | base64 -d > "${TMP_CA}"
+          docker cp "${TMP_CA}" "${CP}:/etc/kubernetes/pki/yggdrasil-ca.crt"
+          rm -f "${TMP_CA}"
+          docker exec "${CP}" sed -i "/- kube-apiserver/a \    - --oidc-issuer-url=https://auth.yggdrasil.local/application/o/k8s/\n    - --oidc-client-id=kubernetes\n    - --oidc-username-claim=preferred_username\n    - --oidc-groups-claim=groups\n    - --oidc-ca-file=/etc/kubernetes/pki/yggdrasil-ca.crt" /etc/kubernetes/manifests/kube-apiserver.yaml
+        fi
+      fi
+    done
+    echo "  [OK] Control plane OIDC configuration verified."
+  fi
+fi
+
+echo "==> 6. Cluster healthcheck completed successfully."
