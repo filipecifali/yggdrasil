@@ -1,0 +1,17 @@
+apiVersion: kilo.squat.ai/v1alpha1
+kind: Peer
+metadata:
+  name: yggdrasil
+  labels:
+    yggdrasil.io/realm: niflheim
+    yggdrasil.io/tier: infrastructure
+spec:
+  publicKey: 8S7qMbDouP6/uA42RGFDy1TWmD1U5Oi4RS+bx/5iygM=
+  endpoint:
+    dnsOrIP:
+      ip: 172.18.0.6
+    port: 51820
+  allowedIPs:
+    - 10.244.0.0/16
+    - 10.96.0.0/12
+    - 10.4.0.0/16

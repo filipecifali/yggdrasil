@@ -9,9 +9,17 @@ containerdConfigPatches:
     [plugins."io.containerd.grpc.v1.cri".registry]
       config_path = "/etc/containerd/certs.d"
 nodes:
+  # ===========================================================================
+  # HA Control-Plane Pool (3 Nodes — Stacked etcd Quorum + OIDC)
+  # ===========================================================================
   - role: control-plane
     image: kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5
     kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "ingress-ready=true"
       - |
         kind: ClusterConfiguration
         apiServer:
@@ -21,5 +29,64 @@ nodes:
             oidc-username-claim: "preferred_username"
             oidc-groups-claim: "groups"
             oidc-ca-file: "/etc/kubernetes/pki/yggdrasil-ca.crt"
+    extraPortMappings:
+      # Web Hosting & Edge Gateway (HTTP / HTTPS via Envoy Gateway NodePorts)
+      - containerPort: 31080
+        hostPort: 8080
+        protocol: TCP
+      - containerPort: 31443
+        hostPort: 8443
+        protocol: TCP
+      # DNS (Mapped to 5354 on host to avoid conflict with Yggdrasil 5353)
+      - containerPort: 31053
+        hostPort: 5354
+        protocol: UDP
+      - containerPort: 31053
+        hostPort: 5354
+        protocol: TCP
+      # Email (SMTP, Submission, IMAPS)
+      - containerPort: 31025
+        hostPort: 2526
+        protocol: TCP
+      - containerPort: 31587
+        hostPort: 588
+        protocol: TCP
+      - containerPort: 31993
+        hostPort: 994
+        protocol: TCP
+  - role: control-plane
+    image: kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5
+  - role: control-plane
+    image: kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5
+
+  # ===========================================================================
+  # Platform Node Pool (3 Nodes — Operators, Edge Gateway, PKI, DNS, Monitoring, Storage)
+  # ===========================================================================
   - role: worker
     image: kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5
+    labels:
+      yggdrasil.io/node-pool: platform
+  - role: worker
+    image: kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5
+    labels:
+      yggdrasil.io/node-pool: platform
+  - role: worker
+    image: kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5
+    labels:
+      yggdrasil.io/node-pool: platform
+
+  # ===========================================================================
+  # Application Node Pool (3 Nodes — Web, Mail, Git Forge, CI Runners)
+  # ===========================================================================
+  - role: worker
+    image: kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5
+    labels:
+      yggdrasil.io/node-pool: apps
+  - role: worker
+    image: kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5
+    labels:
+      yggdrasil.io/node-pool: apps
+  - role: worker
+    image: kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5
+    labels:
+      yggdrasil.io/node-pool: apps

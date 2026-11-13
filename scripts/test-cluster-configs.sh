@@ -114,10 +114,13 @@ echo "==> Running Test 6: Kustomize Build & Overlay Render Integrity..."
 if command -v kubectl >/dev/null 2>&1; then
   KUSTOMIZE_TARGETS=(
     "clusters/kind/flux-system"
+    "clusters/jotunheim/flux-system"
     "infrastructure/base"
     "infrastructure/overlays/kind"
+    "infrastructure/overlays/jotunheim"
     "apps/base"
     "apps/overlays/kind"
+    "apps/overlays/jotunheim"
     "apps/base/security"
     "apps/base/auth"
     "apps/base/dns"
@@ -299,6 +302,12 @@ if [ -f "scripts/setup-harbor-replication.py" ] && [ -f "scripts/setup-jotunheim
   pass "Automated cross-cluster OIDC and Harbor replication provisioning scripts present"
 else
   fail "Automation scripts missing" "Missing setup-harbor-replication.py or setup-jotunheim-oidc.sh"
+fi
+
+if [ -f "clusters/jotunheim/infrastructure.yaml" ] && [ -f "clusters/jotunheim/apps.yaml" ]; then
+  pass "Jotunheim GitOps Flux Kustomizations configured for replicated infrastructure and apps"
+else
+  fail "Jotunheim GitOps missing" "Missing clusters/jotunheim/infrastructure.yaml or apps.yaml"
 fi
 
 # ------------------------------------------------------------------------------
