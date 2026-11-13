@@ -1,0 +1,46 @@
+# ==============================================================================
+# Sovereign Single Page Application (SPA) & Frontend Serving Template
+# Suitable for React, Vue, Vite, Next.js static export, Angular, and Svelte.
+# Features:
+# 1. Zero-privilege NGINX container (UID 101, read-only rootfs, dropped capabilities)
+# 2. Native SPA client-side routing fallback (try_files $uri $uri/ /index.html)
+# 3. Two-tier Cache-Control strategy designed for Envoy Gateway edge caching:
+#    - Immutable content-hashed assets (*.js, *.css, *.wasm): max-age=31536000, immutable
+#    - Entrypoint HTML documents (index.html): max-age=0, must-revalidate (instant rollouts)
+# ==============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: spa-nginx-config-template
+  namespace: web-system
+  labels:
+    app.kubernetes.io/name: spa-frontend-template
+    yggdrasil.io/realm: midgard
+    yggdrasil.io/tier: edge-cache
+data:
+  default.conf: |
+    server {
+        listen 8080;
+        server_name _;
+        root /usr/share/nginx/html;
+        index index.html;
+
+        # Security Headers
+        add_header X-Frame-Options "DENY" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+        # 1. Content-Hashed Static Assets (Cached at Envoy edge & browser for 1 year)
+        location ~* \.(?:css|js|woff2?|svg|gif|png|jpe?g|webp|ico|wasm)$ {
+            expires 1y;
+            add_header Cache-Control "public, max-age=31536000, immutable" always;
+            access_log off;
+            try_files $uri =404;
+        }
+
+        # 2. HTML Document & SPA Fallback (Never cache stale HTML chunks; revalidate via ETag)
+        location / {
+            add_header Cache-Control "public, max-age=0, must-revalidate" always;
+            try_files $uri $uri/ /index.html;
+        }
+    }

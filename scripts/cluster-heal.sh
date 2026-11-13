@@ -153,11 +153,18 @@ echo "==> 6. Verifying Jotunheim secondary cluster & Kilo mesh peering..."
 JOTUN_CP="jotunheim-control-plane"
 JOTUN_WORKER="jotunheim-worker"
 if docker inspect "${JOTUN_CP}" >/dev/null 2>&1; then
-  # Ensure jotunheim containers are running
+  # Ensure jotunheim containers are running and attached to kind network
   for JN in "${JOTUN_CP}" "${JOTUN_WORKER}"; do
-    if [[ "$(docker inspect "${JN}" --format "{{.State.Running}}" 2>/dev/null)" != "true" ]]; then
-      echo "  [START] Starting ${JN}..."
-      docker start "${JN}" >/dev/null
+    if docker inspect "${JN}" >/dev/null 2>&1; then
+      JN_IP="$(docker inspect "${JN}" --format "{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}" 2>/dev/null || true)"
+      if [[ -z "${JN_IP}" ]]; then
+        echo "  [CONNECT] ${JN} lost network attachment. Reconnecting to ${KIND_NETWORK}..."
+        docker network connect "${KIND_NETWORK}" "${JN}" 2>/dev/null || true
+      fi
+      if [[ "$(docker inspect "${JN}" --format "{{.State.Running}}" 2>/dev/null)" != "true" ]]; then
+        echo "  [START] Starting ${JN}..."
+        docker start "${JN}" >/dev/null 2>&1 || true
+      fi
     fi
   done
 

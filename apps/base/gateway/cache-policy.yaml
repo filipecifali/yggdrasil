@@ -1,0 +1,43 @@
+# ==============================================================================
+# Envoy Gateway CloudFront-Equivalent In-Memory HTTP Cache Policy (Bifrost)
+# Injects the 'envoy.filters.http.cache' filter with SimpleHttpCache into the
+# Bifrost Gateway listener filter chain.
+# Enables microsecond edge hits for static content, SPAs, and immutable assets.
+# ==============================================================================
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: EnvoyPatchPolicy
+metadata:
+  name: bifrost-edge-cache
+  namespace: envoy-gateway-system
+  labels:
+    yggdrasil.io/realm: bifrost
+    yggdrasil.io/tier: edge-cache
+spec:
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: Gateway
+    name: bifrost
+  type: JSONPatch
+  jsonPatches:
+    - type: type.googleapis.com/envoy.config.listener.v3.Listener
+      name: envoy-gateway-system/bifrost/http
+      operation:
+        op: add
+        path: /default_filter_chain/filters/0/typed_config/http_filters/0
+        value:
+          name: envoy.filters.http.cache
+          typed_config:
+            "@type": type.googleapis.com/envoy.extensions.filters.http.cache.v3.CacheConfig
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.cache.simple_http_cache.v3.SimpleHttpCacheConfig
+    - type: type.googleapis.com/envoy.config.listener.v3.Listener
+      name: envoy-gateway-system/bifrost/https
+      operation:
+        op: add
+        path: /default_filter_chain/filters/0/typed_config/http_filters/0
+        value:
+          name: envoy.filters.http.cache
+          typed_config:
+            "@type": type.googleapis.com/envoy.extensions.filters.http.cache.v3.CacheConfig
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.cache.simple_http_cache.v3.SimpleHttpCacheConfig

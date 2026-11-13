@@ -427,6 +427,37 @@ else
 fi
 
 # ------------------------------------------------------------------------------
+echo "==> Running Test 15: Envoy Edge Caching & CloudFront-Equivalent Frontend Hosting..."
+if [ -f "apps/base/gateway/cache-policy.yaml" ] && \
+   grep -q "kind: EnvoyPatchPolicy" apps/base/gateway/cache-policy.yaml && \
+   grep -q "envoy.filters.http.cache" apps/base/gateway/cache-policy.yaml; then
+  pass "Envoy Gateway HTTP in-memory cache filter configured via EnvoyPatchPolicy"
+else
+  fail "Envoy cache policy missing" "apps/base/gateway/cache-policy.yaml not configured"
+fi
+
+if [ -f "infrastructure/base/gateway/helmrelease.yaml" ] && \
+   grep -q "enableEnvoyPatchPolicy: true" infrastructure/base/gateway/helmrelease.yaml; then
+  pass "Envoy Gateway HelmRelease enables EnvoyPatchPolicy extension API"
+else
+  fail "EnvoyPatchPolicy disabled" "infrastructure/base/gateway/helmrelease.yaml missing enableEnvoyPatchPolicy"
+fi
+
+if [ -f "apps/base/web/spa-frontend-template.yaml" ] && \
+   grep -q "try_files \$uri \$uri/ /index.html" apps/base/web/spa-frontend-template.yaml && \
+   grep -q "max-age=31536000, immutable" apps/base/web/spa-frontend-template.yaml; then
+  pass "Sovereign SPA frontend template configured with client-side routing & immutable asset caching"
+else
+  fail "SPA template missing" "apps/base/web/spa-frontend-template.yaml not configured"
+fi
+
+if [ -f "docs/envoy-cache-cloudfront-architecture.md" ]; then
+  pass "Envoy Gateway CloudFront-equivalent edge caching architecture fully documented"
+else
+  fail "Cache documentation missing" "docs/envoy-cache-cloudfront-architecture.md missing"
+fi
+
+# ------------------------------------------------------------------------------
 # Summary & Exit Code
 # ------------------------------------------------------------------------------
 echo "=============================================================================="

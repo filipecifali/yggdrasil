@@ -3,3 +3,4 @@ kind: Kustomization
 resources:
   - web-hosting.yaml
   - scaledobject.yaml
+  - spa-frontend-template.yaml

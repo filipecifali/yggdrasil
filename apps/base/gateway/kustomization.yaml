@@ -3,4 +3,5 @@ kind: Kustomization
 resources:
   - gateway.yaml
   - edge-policies.yaml
+  - cache-policy.yaml
   - pdb.yaml
