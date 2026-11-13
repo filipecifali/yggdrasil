@@ -9,7 +9,7 @@ spec:
   publicKey: 1QR22GbNQH5CiaTWptZ1anMZgqk/yc+I93GTTKuzBgY=
   endpoint:
     dnsOrIP:
-      ip: 172.18.0.13
+      ip: 172.18.0.9
     port: 51820
   allowedIPs:
     - 10.245.0.0/16

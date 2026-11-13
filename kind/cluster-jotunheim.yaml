@@ -11,5 +11,15 @@ containerdConfigPatches:
 nodes:
   - role: control-plane
     image: kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5
+    kubeadmConfigPatches:
+      - |
+        kind: ClusterConfiguration
+        apiServer:
+          extraArgs:
+            oidc-issuer-url: "https://auth.yggdrasil.local/application/o/k8s/"
+            oidc-client-id: "kubernetes"
+            oidc-username-claim: "preferred_username"
+            oidc-groups-claim: "groups"
+            oidc-ca-file: "/etc/kubernetes/pki/yggdrasil-ca.crt"
   - role: worker
     image: kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5

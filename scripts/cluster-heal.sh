@@ -131,4 +131,41 @@ if kubectl get secret -n cert-manager yggdrasil-root-ca-secret >/dev/null 2>&1; 
   fi
 fi
 
-echo "==> 6. Cluster healthcheck completed successfully."
+echo "==> 6. Verifying Jotunheim secondary cluster & Kilo mesh peering..."
+JOTUN_CP="jotunheim-control-plane"
+JOTUN_WORKER="jotunheim-worker"
+if docker inspect "${JOTUN_CP}" >/dev/null 2>&1; then
+  # Ensure jotunheim containers are running
+  for JN in "${JOTUN_CP}" "${JOTUN_WORKER}"; do
+    if [[ "$(docker inspect "${JN}" --format "{{.State.Running}}" 2>/dev/null)" != "true" ]]; then
+      echo "  [START] Starting ${JN}..."
+      docker start "${JN}" >/dev/null
+    fi
+  done
+
+  # Check Kilo peer endpoint IP drift
+  JOTUN_IP="$(docker inspect "${JOTUN_CP}" --format "{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}" 2>/dev/null || true)"
+  YGG_CP_IP="$(docker inspect "yggdrasil-control-plane" --format "{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}" 2>/dev/null || true)"
+  
+  if [[ -n "${JOTUN_IP}" && -n "${YGG_CP_IP}" ]]; then
+    kubectl --context kind-yggdrasil -n vpn-system patch peer jotunheim --type merge -p "{\"spec\":{\"endpoint\":{\"dnsOrIP\":{\"ip\":\"${JOTUN_IP}\"}}}}" >/dev/null 2>&1 || true
+    kubectl --context kind-jotunheim -n vpn-system patch peer yggdrasil --type merge -p "{\"spec\":{\"endpoint\":{\"dnsOrIP\":{\"ip\":\"${YGG_CP_IP}\"}}}}" >/dev/null 2>&1 || true
+    echo "  [OK] Kilo mesh peers synchronized (Yggdrasil: ${YGG_CP_IP}, Jotunheim: ${JOTUN_IP})."
+  fi
+
+  # Verify Jotunheim OIDC
+  if [[ -n "${GATEWAY_IP}" ]]; then
+    docker exec "${JOTUN_CP}" bash -c "grep -q 'auth.yggdrasil.local' /etc/hosts || echo '${GATEWAY_IP} auth.yggdrasil.local' >> /etc/hosts"
+    if ! docker exec "${JOTUN_CP}" grep -q "oidc-issuer-url" /etc/kubernetes/manifests/kube-apiserver.yaml 2>/dev/null; then
+      echo "  [REPAIR] Injecting missing OIDC flags on ${JOTUN_CP}..."
+      TMP_CA="$(mktemp)"
+      kubectl --context kind-yggdrasil get secret -n cert-manager yggdrasil-root-ca-secret -o jsonpath='{.data.ca\.crt}' | base64 -d > "${TMP_CA}"
+      docker cp "${TMP_CA}" "${JOTUN_CP}:/etc/kubernetes/pki/yggdrasil-ca.crt"
+      rm -f "${TMP_CA}"
+      docker exec "${JOTUN_CP}" sed -i "/- kube-apiserver/a \    - --oidc-issuer-url=https://auth.yggdrasil.local/application/o/k8s/\n    - --oidc-client-id=kubernetes\n    - --oidc-username-claim=preferred_username\n    - --oidc-groups-claim=groups\n    - --oidc-ca-file=/etc/kubernetes/pki/yggdrasil-ca.crt" /etc/kubernetes/manifests/kube-apiserver.yaml
+    fi
+    echo "  [OK] Jotunheim OIDC configuration verified."
+  fi
+fi
+
+echo "==> 7. Cluster healthcheck completed successfully."

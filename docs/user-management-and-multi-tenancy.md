@@ -185,10 +185,45 @@ Every commit and pull request to `main` is automatically evaluated by in-cluster
 1. **Shell Scripts (`bash -n`)**: Syntax validation on all `.sh` automation files.
 2. **Python Compilation (`py_compile`)**: Syntax check on Authentik and security audit scripts.
 3. **Zero Plaintext Secrets**: Rejection of raw `kind: Secret` manifests.
-4. **Zero PII**: Rejection of hardcoded personal paths (`/home/...`) or developer credentials.
+4. **Zero PII**: Rejection of hardcoded personal paths or developer credentials.
 5. **Harbor OCI Repositories**: Verification that all Helm repositories point to the in-cluster Harbor mirror.
 6. **Kustomize Render**: Full dry-run build of all 14 Kustomization overlays and components.
 7. **Multi-Tenancy Quotas**: Validation of `ResourceQuota` and `LimitRange` coverage.
 8. **PSA Compliance**: Verification of namespace security labels and workload security contexts.
 9. **RBAC Least-Privilege Scoping**: Integrity check on ClusterRoleBindings and namespaced developer RoleBindings.
 10. **Gateway API Routing**: Validation of HTTPRoute bindings against the Bifrost Gateway.
+11. **Multi-Cluster Federation**: Validation of Jotunheim Authentik OIDC integration, RBAC scopes, and Harbor replication configuration.
+
+---
+
+## 8. Multi-Cluster Federated Identity (`jotunheim`)
+
+Authentik acts as the centralized **Identity Hub** across the multi-cluster infrastructure. The secondary cluster (**Jotunheim**) connects to Authentik across the encrypted Kilo WireGuard mesh (`kilo0`):
+
+```
++------------------------------------+           +------------------------------------+
+|         Cluster: Yggdrasil         |           |         Cluster: Jotunheim         |
+|                                    |           |                                    |
+| +--------------------------------+ |           | +--------------------------------+ |
+| |        Authentik Server        | |           | |       kube-apiserver           | |
+| |   https://auth.yggdrasil.local | |           | |  --oidc-issuer-url=https://... | |
+| |   RS256 JWT Signing (Root CA)  | |           | |  --oidc-ca-file=yggdrasil-ca   | |
+| +--------------------------------+ |           | +--------------------------------+ |
+|                 |                  |           |                 |                  |
++-----------------|------------------+           +-----------------|------------------+
+                  |                                                |
+                  +==================( kilo0 Mesh )================+
+```
+
+### Control-Plane OIDC Configuration on Jotunheim
+- Issuer URL: `https://auth.yggdrasil.local/application/o/k8s/`
+- CA Certificate: `/etc/kubernetes/pki/yggdrasil-ca.crt` (mounted from Yggdrasil Root CA)
+- Client ID: `kubernetes`
+- Provisioning script: `scripts/setup-jotunheim-oidc.sh`
+- Configuration patch: `kind/cluster-jotunheim.yaml` (`kubeadmConfigPatches`)
+
+### Cross-Cluster RBAC (`clusters/jotunheim/rbac-scopes.yaml`)
+- `jotunheim-cluster-admins`: Binds `Group/cluster-admins` to `ClusterRole/cluster-admin`.
+- `jotunheim-platform-ops`: Binds `Group/platform-ops` to `ClusterRole/cluster-admin`.
+- `jotunheim-auditors`: Binds `Group/auditors` to `ClusterRole/view`.
+

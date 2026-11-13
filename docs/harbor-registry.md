@@ -79,3 +79,47 @@ The `library` project is hardened with **private access** (`public: false`) and 
      ./scripts/mirror-images-to-harbor.sh
      ./scripts/mirror-charts-to-harbor.sh
      ```
+
+---
+
+## Cross-Cluster Harbor Replication (`jotunheim`)
+
+Harbor supports automated, sovereign multi-cluster image and OCI artifact synchronization. A secondary Harbor registry is deployed in the **Jotunheim** secondary cluster (`registry-system` namespace) and paired with Yggdrasil via an event-based replication rule.
+
+```
++-------------------------------------------------------------+
+|                  Cluster: Yggdrasil (Primary)               |
+|                    registry.yggdrasil.local                 |
+|                                                             |
+|   +-----------------------------------------------------+   |
+|   | Harbor Core & Jobservice Engine                     |   |
+|   | - Project: library (Private)                        |   |
+|   | - Policy: replicate-to-jotunheim                    |   |
+|   | - Trigger: Event-Based (on image push) & Manual     |   |
+|   +--------------------------+--------------------------+   |
++------------------------------|------------------------------+
+                               |
+                               v (Kilo WireGuard Mesh / NodePort 30080)
++-------------------------------------------------------------+
+|                  Cluster: Jotunheim (Secondary)             |
+|                    registry.jotunheim.local                 |
+|                                                             |
+|   +-----------------------------------------------------+   |
+|   | Harbor Core & Local Registry                        |   |
+|   | - Project: library                                  |   |
+|   | - Storage: local-path 5Gi PVC                       |   |
+|   +-----------------------------------------------------+   |
++-------------------------------------------------------------+
+```
+
+### Replication Architecture
+1. **Endpoint Target**: Yggdrasil Harbor registers Jotunheim Harbor (`http://172.18.0.9:30080` or `http://registry.jotunheim.local`) as an authenticated remote registry endpoint using basic authentication.
+2. **Replication Policy (`replicate-to-jotunheim`)**:
+   - **Mode**: Push-based replication from Yggdrasil (`library/**`) to Jotunheim (`library`).
+   - **Trigger**: `event_based` (replicates automatically and immediately whenever any container image or Helm OCI chart is pushed to Yggdrasil).
+   - **Deletion & Override**: Enabled to ensure synchronization parity.
+3. **Automated Setup & Verification**:
+   - Setup Script: `scripts/setup-harbor-replication.py`
+   - Verification Script: `scripts/verify-harbor-replication.py`
+   - Test Validation: Verified through `scripts/test-cluster-configs.sh` (Test 11).
+

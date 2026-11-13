@@ -267,6 +267,40 @@ if [ "${ROUTE_COUNT}" -gt 0 ]; then
 fi
 
 # ------------------------------------------------------------------------------
+echo "==> Running Test 11: Multi-Cluster Jotunheim OIDC, RBAC & Harbor Replication..."
+if grep -q "oidc-issuer-url: \"https://auth.yggdrasil.local/application/o/k8s/\"" kind/cluster-jotunheim.yaml; then
+  pass "Jotunheim Kind configuration enforces Authentik OIDC integration"
+else
+  fail "Jotunheim OIDC missing" "kind/cluster-jotunheim.yaml does not configure OIDC issuer"
+fi
+
+if grep -q "name: cluster-admins" clusters/jotunheim/rbac-scopes.yaml && \
+   grep -q "name: cluster-admin" clusters/jotunheim/rbac-scopes.yaml; then
+  pass "Jotunheim RBAC bounds group 'cluster-admins' to ClusterRole/cluster-admin"
+else
+  fail "Jotunheim RBAC missing" "clusters/jotunheim/rbac-scopes.yaml missing cluster-admin binding"
+fi
+
+if grep -q "name: auditors" clusters/jotunheim/rbac-scopes.yaml && \
+   grep -q "name: view" clusters/jotunheim/rbac-scopes.yaml; then
+  pass "Jotunheim RBAC bounds group 'auditors' to ClusterRole/view"
+else
+  fail "Jotunheim RBAC missing" "clusters/jotunheim/rbac-scopes.yaml missing auditors binding"
+fi
+
+if [ -f "clusters/jotunheim/harbor-values.yaml" ] && grep -q "nodePort: 30080" clusters/jotunheim/harbor-values.yaml; then
+  pass "Jotunheim Harbor deployment configured with NodePort 30080 for cross-cluster replication"
+else
+  fail "Jotunheim Harbor config missing" "clusters/jotunheim/harbor-values.yaml not configured"
+fi
+
+if [ -f "scripts/setup-harbor-replication.py" ] && [ -f "scripts/setup-jotunheim-oidc.sh" ]; then
+  pass "Automated cross-cluster OIDC and Harbor replication provisioning scripts present"
+else
+  fail "Automation scripts missing" "Missing setup-harbor-replication.py or setup-jotunheim-oidc.sh"
+fi
+
+# ------------------------------------------------------------------------------
 # Summary & Exit Code
 # ------------------------------------------------------------------------------
 echo "=============================================================================="
