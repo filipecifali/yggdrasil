@@ -1,0 +1,93 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: zulip-postgres-backup
+  namespace: chat-system
+  labels:
+    app.kubernetes.io/name: zulip-postgres-backup
+    yggdrasil.io/realm: folkvangr
+    yggdrasil.io/tier: apps
+    soc2.compliance/control: A1.2
+spec:
+  schedule: "0 3 * * *"
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: zulip-postgres-backup
+            yggdrasil.io/realm: folkvangr
+        spec:
+          restartPolicy: OnFailure
+          nodeSelector:
+            yggdrasil.io/node-pool: apps
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            fsGroup: 10001
+            seccompProfile:
+              type: RuntimeDefault
+          initContainers:
+            - name: dump-db
+              image: registry.yggdrasil.local/library/postgresql:18.1
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop:
+                    - ALL
+              env:
+                - name: PGPASSWORD
+                  value: "ChangeMe123!"
+                - name: PGUSER
+                  value: "zulip"
+                - name: PGHOST
+                  value: "zulip-postgresql"
+                - name: PGDATABASE
+                  value: "zulip"
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -eu
+                  echo "==> Dumping Zulip PostgreSQL database..."
+                  pg_dump -h "${PGHOST}" -U "${PGUSER}" -d "${PGDATABASE}" --format=custom -f /backup/zulip.dump
+                  chmod 666 /backup/zulip.dump
+                  echo "==> Dump completed: /backup/zulip.dump ($(wc -c < /backup/zulip.dump) bytes)"
+              volumeMounts:
+                - name: backup-volume
+                  mountPath: /backup
+                - name: tmp
+                  mountPath: /tmp
+          containers:
+            - name: upload-s3
+              image: registry.yggdrasil.local/library/curl:8.12.1
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop:
+                    - ALL
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -eu
+                  TIMESTAMP=$(date +%Y%m%d%H%M)
+                  TARGET="zulip-pg-${TIMESTAMP}.dump"
+                  echo "==> Uploading dump to SeaweedFS S3 (/buckets/database-backups/zulip/${TARGET})..."
+                  curl -sf -F "file=@/backup/zulip.dump;filename=${TARGET}" \
+                    "http://seaweedfs-filer.storage-system.svc.cluster.local:8888/buckets/database-backups/zulip/"
+                  echo "==> Zulip DB backup uploaded successfully: ${TARGET}"
+              volumeMounts:
+                - name: backup-volume
+                  mountPath: /backup
+          volumes:
+            - name: backup-volume
+              emptyDir: {}
+            - name: tmp
+              emptyDir: {}

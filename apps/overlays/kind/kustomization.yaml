@@ -5,3 +5,15 @@ resources:
   - gateway-nodeport.yaml
   - dns-nodeport.yaml
   - mail-nodeport.yaml
+
+patches:
+  - target:
+      kind: CronJob
+      name: .*
+    patch: |-
+      apiVersion: batch/v1
+      kind: CronJob
+      metadata:
+        name: all-cronjobs
+      spec:
+        suspend: true
