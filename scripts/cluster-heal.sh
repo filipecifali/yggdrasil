@@ -71,12 +71,20 @@ WORKERS=(
 
 for W in "${WORKERS[@]}"; do
   if docker inspect "${W}" >/dev/null 2>&1; then
-    RUNNING="$(docker inspect "${W}" --format "{{.State.Running}}")"
-    if [[ "${RUNNING}" != "true" ]]; then
-      echo "  [START] Starting ${W}..."
-      docker start "${W}" >/dev/null
+    W_IP="$(docker inspect "${W}" --format "{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}" 2>/dev/null || true)"
+    if [[ -z "${W_IP}" ]]; then
+      echo "  [CONNECT] Worker ${W} lost network attachment. Reconnecting to ${KIND_NETWORK}..."
+      docker network connect "${KIND_NETWORK}" "${W}"
+      docker restart "${W}" >/dev/null
+      echo "  [OK] Worker ${W} reconnected."
     else
-      echo "  [OK] Worker ${W} is active."
+      RUNNING="$(docker inspect "${W}" --format "{{.State.Running}}")"
+      if [[ "${RUNNING}" != "true" ]]; then
+        echo "  [START] Starting ${W}..."
+        docker start "${W}" >/dev/null
+      else
+        echo "  [OK] Worker ${W} is active (IP: ${W_IP})."
+      fi
     fi
   fi
 done
@@ -93,10 +101,14 @@ for i in {1..20}; do
   sleep 3
 done
 
+echo "==> 3b. Ensuring network mesh and kube-proxy reflect current container IPs..."
+kubectl -n vpn-system rollout restart ds kilo >/dev/null 2>&1 || true
+kubectl -n kube-system rollout restart ds kube-proxy >/dev/null 2>&1 || true
+
 echo "==> 4. Verifying HashiCorp Vault seal status..."
 if kubectl -n vault-system get pod vault-0 >/dev/null 2>&1; then
-  SEALED="$(kubectl -n vault-system exec vault-0 -- vault status -format=json 2>/dev/null | grep -o '"sealed":true' || true)"
-  if [[ "${SEALED}" == '"sealed":true' ]]; then
+  VAULT_STATUS="$(kubectl -n vault-system exec vault-0 -- vault status -format=json 2>/dev/null || true)"
+  if echo "${VAULT_STATUS}" | grep -q '"sealed":\s*true'; then
     echo "  [UNSEAL] Vault is sealed. Unsealing via vault-init-keys..."
     UNSEAL_KEY="$(kubectl -n vault-system get secret vault-init-keys -o jsonpath='{.data.unseal-key}' 2>/dev/null | base64 -d || true)"
     if [[ -n "${UNSEAL_KEY}" ]]; then
@@ -108,6 +120,12 @@ if kubectl -n vault-system get pod vault-0 >/dev/null 2>&1; then
   else
     echo "  [OK] Vault is already unsealed."
   fi
+fi
+
+echo "==> 4b. Ensuring RabbitMQ task-queue exists for KEDA scalers..."
+if kubectl -n chat-system get pod zulip-rabbitmq-0 >/dev/null 2>&1; then
+  kubectl -n chat-system exec zulip-rabbitmq-0 -- rabbitmqctl eval 'rabbit_amqqueue:declare({resource, <<"/">>, queue, <<"task-queue">>}, true, false, [], none, <<"zulip">>).' >/dev/null 2>&1 || true
+  echo "  [OK] RabbitMQ task-queue verified."
 fi
 
 echo "==> 5. Verifying Control Plane OIDC configuration..."
