@@ -33,4 +33,5 @@ This directory contains architecture, configuration, and operational guides for 
 
 | Document | Purpose |
 | :--- | :--- |
+| [**User Onboarding & RBAC Runbook (`user-onboarding-and-rbac-runbook.md`)**](user-onboarding-and-rbac-runbook.md) | Operational procedures for adding, modifying, and offboarding users across all 11 cluster subsystems (Authentik, K8s RBAC, Forgejo, Harbor, Vault, Zulip, VictoriaMetrics, Grafana, Mail, Postgres, RabbitMQ, SeaweedFS) |
 | [**Kubernetes v1.37 & Kind v0.33 Upgrade (`kubernetes-1.37-upgrade.md`)**](kubernetes-1.37-upgrade.md) | Full procedures, root cause analyses, and operational steps for upgrading Kind, node runtimes, bootstrapping sovereign Harbor OCI mirrors, and establishing Kilo WireGuard mesh |
