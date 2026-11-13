@@ -127,6 +127,7 @@ if command -v kubectl >/dev/null 2>&1; then
     "apps/base/registry"
     "apps/base/storage"
     "apps/base/web"
+    "apps/base/serverless"
   )
   for TARGET in "${KUSTOMIZE_TARGETS[@]}"; do
     if [ -d "${TARGET}" ]; then
@@ -298,6 +299,37 @@ if [ -f "scripts/setup-harbor-replication.py" ] && [ -f "scripts/setup-jotunheim
   pass "Automated cross-cluster OIDC and Harbor replication provisioning scripts present"
 else
   fail "Automation scripts missing" "Missing setup-harbor-replication.py or setup-jotunheim-oidc.sh"
+fi
+
+# ------------------------------------------------------------------------------
+echo "==> Running Test 12: Serverless Scale-to-Zero Functions (KEDA HTTP Add-on)..."
+if [ -f "infrastructure/base/keda/http-add-on-helmrelease.yaml" ] && \
+   grep -q "chart: keda-add-ons-http" infrastructure/base/keda/http-add-on-helmrelease.yaml; then
+  pass "KEDA HTTP Add-on HelmRelease configured with hardened securityContext and local Harbor mirror"
+else
+  fail "KEDA HTTP Add-on missing" "infrastructure/base/keda/http-add-on-helmrelease.yaml not configured"
+fi
+
+if [ -f "apps/base/serverless/echo-function.yaml" ] && \
+   grep -q "kind: HTTPScaledObject" apps/base/serverless/echo-function.yaml && \
+   grep -q "min: 0" apps/base/serverless/echo-function.yaml; then
+  pass "Serverless HTTPScaledObject configured with scale-to-zero (min: 0 replicas)"
+else
+  fail "HTTPScaledObject missing" "apps/base/serverless/echo-function.yaml not configuring scale-to-zero"
+fi
+
+if [ -f "apps/base/serverless/httproute.yaml" ] && \
+   grep -q "keda-add-ons-http-interceptor-proxy" apps/base/serverless/httproute.yaml; then
+  pass "Serverless HTTPRoute targets KEDA interceptor proxy via Bifrost Gateway"
+else
+  fail "Serverless HTTPRoute missing" "apps/base/serverless/httproute.yaml not routing to interceptor"
+fi
+
+if [ -f "apps/base/serverless/referencegrant.yaml" ] && \
+   grep -q "allow-web-system-to-keda-interceptor" apps/base/serverless/referencegrant.yaml; then
+  pass "Gateway API ReferenceGrant permits cross-namespace routing from web-system to keda-system"
+else
+  fail "ReferenceGrant missing" "apps/base/serverless/referencegrant.yaml not configured"
 fi
 
 # ------------------------------------------------------------------------------

@@ -1,0 +1,23 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: serverless-functions
+  namespace: web-system
+  labels:
+    yggdrasil.io/realm: midgard
+spec:
+  parentRefs:
+    - name: bifrost
+      namespace: envoy-gateway-system
+  hostnames:
+    - "fn.yggdrasil.local"
+    - "echo-fn.yggdrasil.local"
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: keda-add-ons-http-interceptor-proxy
+          namespace: keda-system
+          port: 8080

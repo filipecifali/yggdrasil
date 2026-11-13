@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: echo-fn
+  namespace: web-system
+  labels:
+    app: echo-fn
+    yggdrasil.io/realm: midgard
+spec:
+  replicas: 0
+  selector:
+    matchLabels:
+      app: echo-fn
+  template:
+    metadata:
+      labels:
+        app: echo-fn
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        runAsGroup: 101
+        fsGroup: 101
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: fn
+          image: registry.yggdrasil.local/library/nginx-unprivileged:1.27-alpine
+          ports:
+            - containerPort: 8080
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 64Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: echo-fn
+  namespace: web-system
+  labels:
+    app: echo-fn
+spec:
+  ports:
+    - port: 8080
+      targetPort: 8080
+  selector:
+    app: echo-fn
+---
+apiVersion: http.keda.sh/v1alpha1
+kind: HTTPScaledObject
+metadata:
+  name: echo-fn
+  namespace: web-system
+spec:
+  hosts:
+    - echo-fn.yggdrasil.local
+    - fn.yggdrasil.local
+  scaleTargetRef:
+    name: echo-fn
+    kind: Deployment
+    apiVersion: apps/v1
+    service: echo-fn
+    port: 8080
+  replicas:
+    min: 0
+    max: 5
+  scaledownPeriod: 30
+  targetPendingRequests: 100

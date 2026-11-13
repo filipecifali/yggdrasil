@@ -15,6 +15,7 @@ It provides a complete infrastructure and application stack inside Kubernetes:
 - **Cross-Cluster WireGuard Mesh:** **Kilo** (`squat/kilo`) WireGuard full-mesh overlay connecting Yggdrasil with external Kubernetes clusters (`jotunheim`)
 - **Multi-Cluster Federated Identity:** Centralized **Authentik** OIDC user federation (`RS256`), scoped RBAC matrices across both clusters, and automated kubeconfig provisioning
 - **Cross-Cluster Harbor Replication:** Push-based, event-driven image and OCI Helm chart replication between Yggdrasil and Jotunheim registries
+- **Serverless & Scale-to-Zero (AWS Lambda Equivalent):** **KEDA HTTP Add-on** providing event-driven HTTP request buffering, automatic 0 -> 1+ cold scaling, sub-millisecond warm routing, and idle scaledown
 - **Web Hosting:** Unprivileged NGINX hosting & RFC 8461 MTA-STS policy endpoint
 - **Multi-Tenancy Hardening:** Explicit `ResourceQuota` and `LimitRange` guardrails, Pod Security Standards (`restricted`/`baseline`), and dropped capabilities across all workloads
 - **Automated Configuration Testing:** In-cluster **Forgejo Actions CI** running 59 automated configuration assertions on every push and pull request

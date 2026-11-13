@@ -1,0 +1,56 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: keda-http-add-on
+  namespace: keda-system
+  labels:
+    yggdrasil.io/realm: sindri
+    yggdrasil.io/tier: infrastructure
+spec:
+  interval: 10m
+  chart:
+    spec:
+      chart: keda-add-ons-http
+      version: "0.16.0"
+      sourceRef:
+        kind: HelmRepository
+        name: kedacore
+        namespace: flux-system
+      interval: 1h
+  install:
+    crds: CreateReplace
+  upgrade:
+    crds: CreateReplace
+  values:
+    crds:
+      install: true
+    images:
+      tag: "0.16.0"
+      operator: registry.yggdrasil.local/library/http-add-on-operator
+      interceptor: registry.yggdrasil.local/library/http-add-on-interceptor
+      scaler: registry.yggdrasil.local/library/http-add-on-scaler
+    operator:
+      nodeSelector:
+        yggdrasil.io/node-pool: platform
+    scaler:
+      replicas: 1
+      nodeSelector:
+        yggdrasil.io/node-pool: platform
+    interceptor:
+      replicas:
+        min: 1
+        max: 3
+      nodeSelector:
+        yggdrasil.io/node-pool: platform
+    podSecurityContext:
+      runAsNonRoot: true
+      seccompProfile:
+        type: RuntimeDefault
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+          - ALL
+      runAsNonRoot: true
+      seccompProfile:
+        type: RuntimeDefault
