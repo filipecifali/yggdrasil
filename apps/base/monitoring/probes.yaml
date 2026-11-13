@@ -1,0 +1,150 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: blackbox-exporter
+  namespace: monitoring-system
+  labels:
+    app.kubernetes.io/name: blackbox-exporter
+    app.kubernetes.io/component: prober
+    yggdrasil.io/realm: hlidskjalf
+    yggdrasil.io/tier: platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: blackbox-exporter
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: blackbox-exporter
+        app.kubernetes.io/component: prober
+        yggdrasil.io/realm: hlidskjalf
+        yggdrasil.io/tier: platform
+    spec:
+      nodeSelector:
+        yggdrasil.io/node-pool: platform
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        fsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: blackbox-exporter
+          image: registry.yggdrasil.local/library/blackbox-exporter:v0.25.0
+          args:
+            - --config.file=/etc/blackbox_exporter/config.yml
+          ports:
+            - name: http
+              containerPort: 9115
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /etc/blackbox_exporter
+              readOnly: true
+          resources:
+            requests:
+              cpu: 25m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+      volumes:
+        - name: config
+          configMap:
+            name: blackbox-exporter-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: blackbox-exporter
+  namespace: monitoring-system
+  labels:
+    app.kubernetes.io/name: blackbox-exporter
+    app.kubernetes.io/component: prober
+    yggdrasil.io/realm: hlidskjalf
+    yggdrasil.io/tier: platform
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 9115
+      targetPort: http
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: blackbox-exporter
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: blackbox-exporter-config
+  namespace: monitoring-system
+  labels:
+    app.kubernetes.io/name: blackbox-exporter
+    yggdrasil.io/realm: hlidskjalf
+data:
+  config.yml: |
+    modules:
+      http_2xx:
+        prober: http
+        timeout: 5s
+        http:
+          valid_status_codes: [200, 201, 202, 204]
+          method: GET
+          no_follow_redirects: false
+          fail_if_ssl: false
+          tls_config:
+            insecure_skip_verify: true
+      http_health:
+        prober: http
+        timeout: 5s
+        http:
+          valid_status_codes: [200]
+          method: GET
+          tls_config:
+            insecure_skip_verify: true
+      tcp_connect:
+        prober: tcp
+        timeout: 5s
+---
+# ==============================================================================
+# VictoriaMetrics VMProbe: Synthetic Gateway & Application Probing
+# Tests ingress HTTPRoutes from outside-in across the cluster
+# ==============================================================================
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMProbe
+metadata:
+  name: platform-gateway-probes
+  namespace: monitoring-system
+  labels:
+    app.kubernetes.io/name: platform-gateway-probes
+    app.kubernetes.io/component: prober
+    yggdrasil.io/realm: hlidskjalf
+    yggdrasil.io/tier: platform
+spec:
+  jobName: gateway-synthetic-probes
+  interval: 30s
+  scrapeTimeout: 10s
+  module: http_2xx
+  vmProberSpec:
+    url: blackbox-exporter.monitoring-system.svc.cluster.local:9115
+    path: /probe
+  targets:
+    staticConfig:
+      targets:
+        - "https://bifrost.envoy-gateway-system.svc.cluster.local"
+        - "http://sample-app.sample-app.svc.cluster.local:8000/healthz"
+        - "http://sample-app.sample-app.svc.cluster.local:8000/readyz"
+        - "http://seaweedfs-s3.storage-system.svc.cluster.local:8333"
+        - "http://harbor.registry-system.svc.cluster.local"
+        - "http://authentik-server.auth-system.svc.cluster.local"
+      labels:
+        probe_tier: synthetic-gateway
+        environment: sovereign-production

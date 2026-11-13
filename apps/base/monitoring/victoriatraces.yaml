@@ -1,0 +1,54 @@
+# ==============================================================================
+# VictoriaMetrics VTSingle: Sovereign OpenTelemetry Distributed Tracing Backend
+# Completes the Observability Triad: Metrics (VMSingle) + Logs (VLSingle) + Traces (VTSingle)
+# ==============================================================================
+apiVersion: operator.victoriametrics.com/v1
+kind: VTSingle
+metadata:
+  name: yggdrasil-vtsingle
+  namespace: monitoring-system
+  labels:
+    app.kubernetes.io/name: victoriatraces
+    app.kubernetes.io/component: tracing-backend
+    yggdrasil.io/realm: hlidskjalf
+    yggdrasil.io/tier: platform
+spec:
+  image:
+    repository: registry.yggdrasil.local/library/victoria-traces
+    tag: v1.0.0
+  retentionPeriod: "7d"
+  nodeSelector:
+    yggdrasil.io/node-pool: platform
+  storage:
+    accessModes:
+      - ReadWriteOnce
+    resources:
+      requests:
+        storage: 10Gi
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: victoriatraces-ui
+  namespace: monitoring-system
+  labels:
+    app.kubernetes.io/name: victoriatraces
+    app.kubernetes.io/component: tracing-ui
+    yggdrasil.io/realm: hlidskjalf
+    yggdrasil.io/tier: platform
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: bifrost
+      namespace: envoy-gateway-system
+  hostnames:
+    - "traces.yggdrasil.local"
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: vtsingle-yggdrasil-vtsingle
+          port: 8428

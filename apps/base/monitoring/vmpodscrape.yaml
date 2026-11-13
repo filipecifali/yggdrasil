@@ -1,0 +1,32 @@
+# ==============================================================================
+# VictoriaMetrics VMPodScrape: Direct Worker & Daemon Pod Metrics Scraping
+# Scrapes metrics directly from pods without requiring a ClusterIP Service
+# ==============================================================================
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMPodScrape
+metadata:
+  name: background-workers-podscrape
+  namespace: monitoring-system
+  labels:
+    app.kubernetes.io/name: background-workers-podscrape
+    app.kubernetes.io/component: monitoring
+    yggdrasil.io/realm: hlidskjalf
+    yggdrasil.io/tier: platform
+spec:
+  podMetricsEndpoints:
+    - port: metrics
+      interval: 30s
+      scrapeTimeout: 10s
+    - port: http
+      interval: 30s
+      scrapeTimeout: 10s
+      path: /metrics
+  selector:
+    matchExpressions:
+      - key: app.kubernetes.io/component
+        operator: In
+        values:
+          - celery-worker
+          - background-worker
+          - batch-worker
+          - runner

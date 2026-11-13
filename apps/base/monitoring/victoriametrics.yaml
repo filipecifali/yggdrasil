@@ -36,6 +36,16 @@ spec:
     yggdrasil.io/node-pool: platform
   remoteWrite:
     - url: "http://vmsingle-yggdrasil-vmsingle.monitoring-system.svc.cluster.local:8429/api/v1/write"
+  inlineRelabelConfig:
+    - action: replace
+      targetLabel: cluster
+      replacement: yggdrasil-sovereign
+    - action: replace
+      targetLabel: sovereign_tier
+      replacement: primary
+    - action: drop
+      sourceLabels: [__name__]
+      regex: "(go_memstats_gc_sys_bytes|go_memstats_other_sys_bytes)"
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute

@@ -13,6 +13,9 @@ spec:
     - group: gateway.networking.k8s.io
       kind: HTTPRoute
       name: victorialogs-ui
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: victoriatraces-ui
   extAuth:
     failOpen: false
     http:
