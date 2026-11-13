@@ -27,6 +27,7 @@ spec:
                   - mail-system
                   - monitoring-system
                   - cnpg-system
+                  - keda-system
       ports:
         - protocol: TCP
           port: 5432
