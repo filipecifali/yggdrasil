@@ -1,0 +1,46 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: sample-app-isolate
+  namespace: sample-app
+  labels:
+    app.kubernetes.io/name: sample-app
+    yggdrasil.io/realm: midgard
+    yggdrasil.io/tier: apps
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # 1. Allow all internal pods within sample-app namespace to communicate
+    - from:
+        - podSelector: {}
+    # 2. Allow Envoy Gateway to route incoming HTTP traffic to Django
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: envoy-gateway-system
+      ports:
+        - protocol: TCP
+          port: 8000
+  egress:
+    # 1. Allow internal communication between Django, Celery, Postgres, Redis, and RabbitMQ
+    - to:
+        - podSelector: {}
+    # 2. Allow CoreDNS for service discovery
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # 3. Allow SeaweedFS S3 in storage-system
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: storage-system
+      ports:
+        - protocol: TCP
+          port: 8333

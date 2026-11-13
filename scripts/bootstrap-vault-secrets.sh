@@ -165,6 +165,12 @@ vault kv put secret/chat/zulip \
 vault kv put secret/monitoring/grafana \
   admin-user="admin" \
   admin-password="ChangeMe123!"
+
+# 10. Sample App Full-Stack Demo (sample-app/sample-app-secrets)
+vault kv put secret/web/sample-app \
+  DJANGO_SECRET_KEY="sovereign-sample-app-django-secret-key-2026" \
+  DB_PASSWORD="SamplePostgresPass2026!" \
+  RABBITMQ_PASSWORD="SampleRabbitPass2026!"
 VAULT_SH
 
 echo "==> All application secrets stored in HashiCorp Vault (secret/*)!"

@@ -131,6 +131,7 @@ if command -v kubectl >/dev/null 2>&1; then
     "apps/base/storage"
     "apps/base/web"
     "apps/base/serverless"
+    "apps/base/sample-app"
   )
   for TARGET in "${KUSTOMIZE_TARGETS[@]}"; do
     if [ -d "${TARGET}" ]; then
@@ -151,7 +152,7 @@ fi
 echo "==> Running Test 7: Multi-Tenancy ResourceQuotas & LimitRanges Validation..."
 QUOTA_FILE="infrastructure/base/resourcequotas.yaml"
 LIMIT_FILE="infrastructure/base/limitranges.yaml"
-TENANT_NAMESPACES=("default" "web-system" "git-system" "chat-system" "mail-system")
+TENANT_NAMESPACES=("default" "web-system" "git-system" "chat-system" "mail-system" "sample-app")
 
 if [ ! -f "${QUOTA_FILE}" ]; then
   fail "Missing ResourceQuota file" "${QUOTA_FILE}"
@@ -168,7 +169,7 @@ fi
 if [ ! -f "${LIMIT_FILE}" ]; then
   fail "Missing LimitRange file" "${LIMIT_FILE}"
 else
-  for NS in "default" "web-system" "git-system" "mail-system"; do
+  for NS in "default" "web-system" "git-system" "mail-system" "sample-app"; do
     if grep -q "namespace: ${NS}" "${LIMIT_FILE}"; then
       pass "LimitRange configured for namespace '${NS}'"
     else
@@ -455,6 +456,57 @@ if [ -f "docs/envoy-cache-cloudfront-architecture.md" ]; then
   pass "Envoy Gateway CloudFront-equivalent edge caching architecture fully documented"
 else
   fail "Cache documentation missing" "docs/envoy-cache-cloudfront-architecture.md missing"
+fi
+
+# ------------------------------------------------------------------------------
+# Test 16: Sample App (Django, Celery, Postgres, Redis, RabbitMQ, SeaweedFS S3)
+# ------------------------------------------------------------------------------
+echo "==> Running Test 16: Sample App & Helm Chart Verification..."
+
+# 1. SemVer Compliance in VERSION file
+if [ -f "sample-app/VERSION" ] && grep -qE '^[0-9]+\.[0-9]+\.[0-9]+' sample-app/VERSION; then
+  pass "sample-app/VERSION adheres to Semantic Versioning ($(cat sample-app/VERSION))"
+else
+  fail "Invalid or missing VERSION" "sample-app/VERSION must contain valid SemVer string"
+fi
+
+# 2. Helm Chart definition & SemVer
+if [ -f "sample-app/chart/Chart.yaml" ] && \
+   grep -qE '^version: [0-9]+\.[0-9]+\.[0-9]+' sample-app/chart/Chart.yaml && \
+   grep -qE '^appVersion: "[0-9]+\.[0-9]+\.[0-9]+"' sample-app/chart/Chart.yaml; then
+  pass "sample-app/chart/Chart.yaml adheres to SemVer for chart version and appVersion"
+else
+  fail "Chart.yaml SemVer failure" "sample-app/chart/Chart.yaml missing valid version/appVersion"
+fi
+
+# 3. Django Settings verification (PostgreSQL, Redis cache, RabbitMQ broker, SeaweedFS S3)
+if [ -f "sample-app/config/settings.py" ] && \
+   grep -q "django.db.backends.postgresql" sample-app/config/settings.py && \
+   grep -q "django.core.cache.backends.redis.RedisCache" sample-app/config/settings.py && \
+   grep -q "CELERY_BROKER_URL" sample-app/config/settings.py && \
+   grep -q "storages.backends.s3.S3Storage" sample-app/config/settings.py; then
+  pass "Django settings.py cleanly integrates Postgres, Redis, RabbitMQ (Celery), and SeaweedFS (S3)"
+else
+  fail "settings.py incomplete" "sample-app/config/settings.py missing one or more required service integrations"
+fi
+
+# 4. Helm templates existence
+if [ -f "sample-app/chart/templates/django-deployment.yaml" ] && \
+   [ -f "sample-app/chart/templates/celery-deployment.yaml" ] && \
+   [ -f "sample-app/chart/templates/httproute.yaml" ] && \
+   [ -f "sample-app/chart/templates/networkpolicy.yaml" ]; then
+  pass "Helm chart contains all core templates (Django, Celery, HTTPRoute, NetworkPolicy)"
+else
+  fail "Missing Helm templates" "sample-app/chart/templates is missing required workload manifests"
+fi
+
+# 5. GitOps apps/base/sample-app integration
+if [ -f "apps/base/sample-app/kustomization.yaml" ] && \
+   [ -f "apps/base/sample-app/externalsecret.yaml" ] && \
+   grep -q "sample-app" apps/base/kustomization.yaml; then
+  pass "Sample App integrated into root apps/base/kustomization.yaml with ExternalSecret Vault integration"
+else
+  fail "GitOps integration missing" "apps/base/kustomization.yaml does not cleanly reference sample-app"
 fi
 
 # ------------------------------------------------------------------------------

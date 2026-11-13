@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sample-app
+  namespace: sample-app
+  labels:
+    app.kubernetes.io/name: sample-app
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: web
+    yggdrasil.io/realm: midgard
+    yggdrasil.io/tier: apps
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sample-app
+      app.kubernetes.io/component: web
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: sample-app
+        app.kubernetes.io/component: web
+        yggdrasil.io/realm: midgard
+        yggdrasil.io/tier: apps
+    spec:
+      nodeSelector:
+        yggdrasil.io/node-pool: apps
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: web
+          image: registry.yggdrasil.local/library/sample-app:1.0.0
+          imagePullPolicy: IfNotPresent
+          command:
+            - gunicorn
+            - --bind
+            - 0.0.0.0:8000
+            - --workers
+            - "2"
+            - --threads
+            - "2"
+            - --timeout
+            - "60"
+            - config.wsgi:application
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: sample-app-config
+            - secretRef:
+                name: sample-app-secrets
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi

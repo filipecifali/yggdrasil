@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "sample-app.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "sample-app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: web
+spec:
+  replicas: {{ .Values.django.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "sample-app.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: web
+  template:
+    metadata:
+      labels:
+        {{- include "sample-app.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: web
+    spec:
+      nodeSelector:
+        {{- toYaml .Values.nodeSelector | nindent 8 }}
+      securityContext:
+        {{- toYaml .Values.securityContext | nindent 8 }}
+      initContainers:
+        - name: wait-for-dependencies
+          image: {{ .Values.django.image.repository }}:{{ .Values.django.image.tag }}
+          imagePullPolicy: {{ .Values.django.image.pullPolicy }}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "Waiting for PostgreSQL database to accept connections..."
+              python -c "
+              import time, sys, os, socket
+              host = os.environ.get('DB_HOST', 'localhost')
+              port = int(os.environ.get('DB_PORT', 5432))
+              for i in range(30):
+                  try:
+                      s = socket.create_connection((host, port), timeout=2)
+                      s.close()
+                      print('PostgreSQL is reachable!')
+                      sys.exit(0)
+                  except Exception:
+                      time.sleep(2)
+              print('Warning: Database wait timeout, continuing...')
+              "
+              echo "Applying Django database migrations..."
+              python manage.py migrate --noinput
+          envFrom:
+            - configMapRef:
+                name: {{ include "sample-app.fullname" . }}-config
+            - secretRef:
+                name: {{ include "sample-app.fullname" . }}-secrets
+      containers:
+        - name: web
+          image: {{ .Values.django.image.repository }}:{{ .Values.django.image.tag }}
+          imagePullPolicy: {{ .Values.django.image.pullPolicy }}
+          command:
+            - gunicorn
+            - --bind
+            - 0.0.0.0:8000
+            - --workers
+            - "2"
+            - --threads
+            - "2"
+            - --timeout
+            - "60"
+            - config.wsgi:application
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: {{ include "sample-app.fullname" . }}-config
+            - secretRef:
+                name: {{ include "sample-app.fullname" . }}-secrets
+          livenessProbe:
+            {{- toYaml .Values.django.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.django.readinessProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.django.resources | nindent 12 }}

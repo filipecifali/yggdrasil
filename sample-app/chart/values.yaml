@@ -1,0 +1,124 @@
+# ==============================================================================
+# Sample App (Django + Celery) Helm Chart Values
+# SemVer: 1.0.0
+# Designed for isolated demo and ephemeral preview environments
+# ==============================================================================
+
+# 1. Django Web Application
+django:
+  replicaCount: 1
+  image:
+    repository: registry.yggdrasil.local/library/sample-app
+    tag: 1.0.0
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8000
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  livenessProbe:
+    httpGet:
+      path: /healthz
+      port: 8000
+    initialDelaySeconds: 15
+    periodSeconds: 10
+  readinessProbe:
+    httpGet:
+      path: /readyz
+      port: 8000
+    initialDelaySeconds: 10
+    periodSeconds: 5
+
+# 2. Celery Background Worker (RabbitMQ broker -> Redis result backend)
+celery:
+  replicaCount: 1
+  concurrency: 2
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+# 3. In-Namespace Isolated Dependencies (Perfect for Ephemeral Demo Environments)
+inNamespaceDependencies:
+  # Isolated PostgreSQL
+  postgres:
+    enabled: true
+    image:
+      repository: registry.yggdrasil.local/library/postgresql
+      tag: "18.1"
+    database: sample_app
+    username: sample_user
+    password: SamplePostgresPass2026!
+    storage: 1Gi
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        cpu: 250m
+        memory: 256Mi
+
+  # Isolated Redis Cache
+  redis:
+    enabled: true
+    image:
+      repository: registry.yggdrasil.local/library/redis
+      tag: 7.2.7-alpine
+    resources:
+      requests:
+        cpu: 25m
+        memory: 64Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
+
+  # Isolated RabbitMQ Broker
+  rabbitmq:
+    enabled: true
+    image:
+      repository: registry.yggdrasil.local/library/rabbitmq
+      tag: 4.0.5-alpine
+    username: sample_rabbit
+    password: SampleRabbitPass2026!
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        cpu: 250m
+        memory: 256Mi
+
+# 4. SeaweedFS S3 Object Storage Configuration
+seaweedfs:
+  enabled: true
+  endpointUrl: "http://seaweedfs-s3.storage-system.svc.cluster.local:8333"
+  bucketName: "sample-app-demo"
+  accessKey: "admin"
+  secretKey: "ChangeMe123!"
+
+# 5. Gateway API Edge Ingress (Bifrost Envoy Gateway)
+gateway:
+  enabled: true
+  name: bifrost
+  namespace: envoy-gateway-system
+  hostname: "sample.yggdrasil.local"
+
+# 6. Global Security Context & Node Pinning
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+
+nodeSelector:
+  yggdrasil.io/node-pool: apps

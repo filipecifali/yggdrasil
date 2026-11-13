@@ -25,6 +25,7 @@ This directory contains architecture, configuration, and operational guides for 
 | [**Alerting & Zulip Notifications (`vmalert-and-zulip-alerts.md`)**](vmalert-and-zulip-alerts.md) | *Hlidskjalf & Folkvangr* (`monitoring-system`, `chat-system`) | VMAlert rule evaluation (`VMRule`), Alertmanager routing, and threaded notifications in Zulip |
 | [**Web Hosting & MTA-STS (`web-hosting.md`)**](web-hosting.md) | *Midgard* (`web-system`) | Unprivileged NGINX hosting, read-only root filesystem, RFC 8461 MTA-STS policy hosting, and edge headers |
 | [**Authentik Identity Provider (`authentik-identity.md`)**](authentik-identity.md) | *Gladsheim* (`auth-system`) | Authentik 2026.8+ (Redis-less), dedicated CloudNativePG database, HashiCorp Vault secrets, Envoy Gateway API routing, and sovereign Harbor mirroring |
+| [**Sample App & Ephemeral Helm Chart (`../sample-app/README.md`)**](../sample-app/README.md) | *Midgard* (`sample-app`) | Sovereign full-stack Django 5.1 + Celery 5.4 diagnostic hub: isolated PostgreSQL, Redis, RabbitMQ, SeaweedFS S3, and SemVer 1.0.0 Helm chart |
 | [**Zulip Threaded Team Chat (`zulip-chat.md`)**](zulip-chat.md) | *Folkvangr* (`chat-system`) | Self-hosted Zulip threaded team chat, PostgreSQL 14, RabbitMQ, Memcached, Redis, Vault secrets, and Gateway API routing |\n| [**Kilo WireGuard Mesh (`kilo-vpn-mesh.md`)**](kilo-vpn-mesh.md) | *Niflheim* (`vpn-system`) | Kilo WireGuard mesh overlay, multi-cluster peering (`Peer` CRDs), cross-cluster pod/service routing |
 
 ## Operational Runbooks

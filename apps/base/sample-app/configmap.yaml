@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sample-app-config
+  namespace: sample-app
+  labels:
+    app.kubernetes.io/name: sample-app
+    app.kubernetes.io/version: "1.0.0"
+    yggdrasil.io/realm: midgard
+    yggdrasil.io/tier: apps
+data:
+  DJANGO_SETTINGS_MODULE: "config.settings"
+  DJANGO_DEBUG: "False"
+  DJANGO_ALLOWED_HOSTS: "*"
+  CSRF_TRUSTED_ORIGINS: "https://*.yggdrasil.local,http://*.yggdrasil.local,http://localhost,http://127.0.0.1"
+
+  # In-Namespace Isolated PostgreSQL
+  DB_HOST: "sample-app-postgres"
+  DB_PORT: "5432"
+  DB_NAME: "sample_app"
+  DB_USER: "sample_user"
+
+  # In-Namespace Isolated Redis
+  REDIS_HOST: "sample-app-redis"
+  REDIS_PORT: "6379"
+
+  # In-Namespace Isolated RabbitMQ
+  RABBITMQ_HOST: "sample-app-rabbitmq"
+  RABBITMQ_PORT: "5672"
+  RABBITMQ_USER: "sample_rabbit"
+  RABBITMQ_VHOST: "/"
+
+  # Cluster SeaweedFS S3
+  USE_S3: "True"
+  AWS_S3_ENDPOINT_URL: "http://seaweedfs-s3.storage-system.svc.cluster.local:8333"
+  AWS_STORAGE_BUCKET_NAME: "sample-app-demo"

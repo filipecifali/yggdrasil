@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sample-app-celery-worker
+  namespace: sample-app
+  labels:
+    app.kubernetes.io/name: sample-app
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: celery-worker
+    yggdrasil.io/realm: midgard
+    yggdrasil.io/tier: apps
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sample-app
+      app.kubernetes.io/component: celery-worker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: sample-app
+        app.kubernetes.io/component: celery-worker
+        yggdrasil.io/realm: midgard
+        yggdrasil.io/tier: apps
+    spec:
+      nodeSelector:
+        yggdrasil.io/node-pool: apps
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: celery-worker
+          image: registry.yggdrasil.local/library/sample-app:1.0.0
+          imagePullPolicy: IfNotPresent
+          command:
+            - celery
+            - -A
+            - config
+            - worker
+            - -l
+            - info
+            - --concurrency
+            - "2"
+          envFrom:
+            - configMapRef:
+                name: sample-app-config
+            - secretRef:
+                name: sample-app-secrets
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi

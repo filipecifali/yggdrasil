@@ -33,6 +33,23 @@ spec:
 apiVersion: v1
 kind: LimitRange
 metadata:
+  name: sample-app-limits
+  namespace: sample-app
+  labels:
+    yggdrasil.io/realm: midgard
+spec:
+  limits:
+    - default:
+        cpu: "500m"
+        memory: "512Mi"
+      defaultRequest:
+        cpu: "50m"
+        memory: "64Mi"
+      type: Container
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
   name: git-limits
   namespace: git-system
   labels:

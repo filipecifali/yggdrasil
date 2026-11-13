@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Yggdrasil Sovereign Cloud — System Diagnostics Dashboard</title>
+  <style>
+    :root {
+      --bg: #0b0f19;
+      --card-bg: #151d2f;
+      --border: #24324d;
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent-hover: #0284c7;
+      --success: #10b981;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      line-height: 1.5;
+      padding: 2rem 1rem;
+    }
+    .container { max-width: 1100px; margin: 0 auto; }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1.5rem;
+    }
+    .header-title h1 { font-size: 1.75rem; color: #fff; display: flex; align-items: center; gap: 0.5rem; }
+    .badge {
+      display: inline-block;
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .badge-primary { background: #0369a1; color: #e0f2fe; }
+    .badge-success { background: #065f46; color: #d1fae5; }
+    .badge-danger { background: #991b1b; color: #fee2e2; }
+    .badge-warning { background: #92400e; color: #fef3c7; }
+    .subtitle { color: var(--text-muted); font-size: 0.9rem; margin-top: 0.25rem; }
+
+    .btn {
+      background: var(--accent);
+      color: #0b0f19;
+      border: none;
+      padding: 0.65rem 1.25rem;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: all 0.2s;
+    }
+    .btn:hover { background: var(--accent-hover); color: #fff; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .grid-4 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1.25rem;
+      margin-bottom: 2.5rem;
+    }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.25rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
+    .card-title { font-size: 1rem; color: #fff; font-weight: 600; }
+    .card-metric { font-size: 1.5rem; font-weight: 700; color: #fff; margin-bottom: 0.25rem; }
+    .card-subtext { font-size: 0.8rem; color: var(--text-muted); }
+
+    .section-title {
+      font-size: 1.25rem;
+      margin-bottom: 1rem;
+      color: #fff;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--card-bg);
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      margin-bottom: 2rem;
+    }
+    th, td {
+      padding: 0.75rem 1rem;
+      text-align: left;
+      font-size: 0.875rem;
+    }
+    th {
+      background: #1e293b;
+      color: var(--text-muted);
+      font-weight: 600;
+      border-bottom: 1px solid var(--border);
+    }
+    tr:not(:last-child) td { border-bottom: 1px solid var(--border); }
+    tr:hover td { background: rgba(255, 255, 255, 0.02); }
+
+    .spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 1s ease-in-out infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    #liveStatusAlert {
+      display: none;
+      padding: 1rem;
+      border-radius: 6px;
+      margin-bottom: 1.5rem;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="header-title">
+        <h1>
+          Yggdrasil Sovereign Cloud
+          <span class="badge badge-primary">v{{ app_version }}</span>
+          <span class="badge badge-success">namespace: sample-app</span>
+        </h1>
+        <p class="subtitle">Full-Stack Integration &amp; Diagnostic Dashboard (PostgreSQL + Redis + RabbitMQ + SeaweedFS S3)</p>
+      </div>
+      <div>
+        <button id="btnRunDiagnostics" class="btn" onclick="triggerDiagnostics()">
+          <span>&#9654; Run Live Diagnostics</span>
+        </button>
+      </div>
+    </header>
+
+    <div id="liveStatusAlert"></div>
+
+    <!-- 4 Subsystem Service Status Cards -->
+    <div class="grid-4">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">PostgreSQL (CNPG)</span>
+          <span class="badge badge-success" id="badgePostgres">ONLINE</span>
+        </div>
+        <div class="card-metric" id="latPostgres">-- ms</div>
+        <div class="card-subtext" id="descPostgres">Relational transactions &amp; schema integrity</div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Redis Cache</span>
+          <span class="badge badge-success" id="badgeRedis">ONLINE</span>
+        </div>
+        <div class="card-metric" id="latRedis">-- ms</div>
+        <div class="card-subtext" id="descRedis">Celery result backend &amp; session cache</div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">RabbitMQ Broker</span>
+          <span class="badge badge-success" id="badgeRabbitmq">ONLINE</span>
+        </div>
+        <div class="card-metric" id="latRabbitmq">-- ms</div>
+        <div class="card-subtext" id="descRabbitmq">AMQP task queue &amp; event distribution</div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">SeaweedFS S3</span>
+          <span class="badge badge-success" id="badgeSeaweedfs">ONLINE</span>
+        </div>
+        <div class="card-metric" id="latSeaweedfs">-- ms</div>
+        <div class="card-subtext" id="descSeaweedfs">S3 object storage (boto3 payload verification)</div>
+      </div>
+    </div>
+
+    <!-- Recent Runs Table -->
+    <div class="section-title">
+      <h2>Recent Diagnostic Executions</h2>
+      <span class="card-subtext" id="autoRefreshLabel">Auto-refresh active</span>
+    </div>
+
+    <table id="runsTable">
+      <thead>
+        <tr>
+          <th>Run ID</th>
+          <th>Triggered At</th>
+          <th>Status</th>
+          <th>Total Duration</th>
+          <th>PostgreSQL</th>
+          <th>Redis</th>
+          <th>RabbitMQ</th>
+          <th>SeaweedFS S3</th>
+          <th>S3 Artifacts</th>
+        </tr>
+      </thead>
+      <tbody id="runsTableBody">
+        {% for run in recent_runs %}
+        <tr>
+          <td><code>{{ run.id|stringformat:".8s" }}...</code></td>
+          <td>{{ run.triggered_at|date:"Y-m-d H:i:s" }}</td>
+          <td>
+            {% if run.status == 'SUCCESS' %}
+              <span class="badge badge-success">PASS</span>
+            {% elif run.status == 'FAILED' %}
+              <span class="badge badge-danger">FAIL</span>
+            {% else %}
+              <span class="badge badge-warning">{{ run.status }}</span>
+            {% endif %}
+          </td>
+          <td><strong>{{ run.overall_latency_ms }} ms</strong></td>
+          {% for check in run.checks.all %}
+            <td>{{ check.latency_ms }} ms ({{ check.status }})</td>
+          {% empty %}
+            <td colspan="4" style="color: var(--text-muted);">In progress...</td>
+          {% endfor %}
+          <td>
+            {% for f in run.s3_files.all %}
+              <code>{{ f.file_name }}</code> ({{ f.file_size_bytes }} B)
+            {% empty %}
+              --
+            {% endfor %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="9" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+            No diagnostic runs recorded yet. Click <strong>Run Live Diagnostics</strong> to test all services.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <script>
+    async function triggerDiagnostics() {
+      const btn = document.getElementById('btnRunDiagnostics');
+      const alertBox = document.getElementById('liveStatusAlert');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> Dispatching task...';
+
+      alertBox.style.display = 'block';
+      alertBox.style.background = '#1e293b';
+      alertBox.style.color = '#38bdf8';
+      alertBox.innerHTML = 'Queuing asynchronous diagnostic task via RabbitMQ...';
+
+      try {
+        const resp = await fetch('/api/diagnostics/run', { method: 'POST' });
+        const data = await resp.json();
+        const runId = data.run_id;
+
+        alertBox.innerHTML = `Task queued (ID: <code>${runId}</code>). Waiting for Celery worker to verify PostgreSQL, Redis, RabbitMQ, and SeaweedFS...`;
+
+        // Poll for completion
+        let attempts = 0;
+        const pollInterval = setInterval(async () => {
+          attempts++;
+          const statusResp = await fetch(`/api/diagnostics/${runId}`);
+          if (statusResp.ok) {
+            const statusData = await statusResp.json();
+            if (statusData.status === 'SUCCESS' || statusData.status === 'FAILED') {
+              clearInterval(pollInterval);
+              btn.disabled = false;
+              btn.innerHTML = '<span>&#9654; Run Live Diagnostics</span>';
+
+              if (statusData.status === 'SUCCESS') {
+                alertBox.style.background = '#064e3b';
+                alertBox.style.color = '#a7f3d0';
+                alertBox.innerHTML = `<strong>Diagnostic Succeeded!</strong> All 4 services validated in ${statusData.overall_latency_ms} ms.`;
+              } else {
+                alertBox.style.background = '#7f1d1d';
+                alertBox.style.color = '#fecaca';
+                alertBox.innerHTML = `<strong>Diagnostic Failed:</strong> One or more services did not pass validation.`;
+              }
+
+              // Update cards
+              statusData.checks.forEach(c => {
+                if (c.service === 'postgres') document.getElementById('latPostgres').innerText = `${c.latency_ms} ms`;
+                if (c.service === 'redis') document.getElementById('latRedis').innerText = `${c.latency_ms} ms`;
+                if (c.service === 'rabbitmq') document.getElementById('latRabbitmq').innerText = `${c.latency_ms} ms`;
+                if (c.service === 'seaweedfs') document.getElementById('latSeaweedfs').innerText = `${c.latency_ms} ms`;
+              });
+
+              // Reload page after 2 seconds to refresh history
+              setTimeout(() => { window.location.reload(); }, 2000);
+            }
+          }
+          if (attempts > 30) {
+            clearInterval(pollInterval);
+            btn.disabled = false;
+            btn.innerHTML = '<span>&#9654; Run Live Diagnostics</span>';
+            alertBox.innerHTML = 'Timeout waiting for Celery worker result.';
+          }
+        }, 1000);
+
+      } catch (err) {
+        btn.disabled = false;
+        btn.innerHTML = '<span>&#9654; Run Live Diagnostics</span>';
+        alertBox.style.background = '#7f1d1d';
+        alertBox.style.color = '#fecaca';
+        alertBox.innerHTML = `Error: ${err.message}`;
+      }
+    }
+  </script>
+</body>
+</html>

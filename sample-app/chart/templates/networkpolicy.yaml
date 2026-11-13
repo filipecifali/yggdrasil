@@ -1,0 +1,44 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "sample-app.fullname" . }}-allow-intra-and-gateway
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "sample-app.labels" . | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # 1. Allow all internal pods within sample-app namespace to communicate
+    - from:
+        - podSelector: {}
+    # 2. Allow Envoy Gateway to route incoming traffic to Django
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.gateway.namespace }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.django.service.port }}
+  egress:
+    # 1. Allow all traffic to other pods in the same namespace
+    - to:
+        - podSelector: {}
+    # 2. Allow CoreDNS for service discovery
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # 3. Allow SeaweedFS S3 in storage-system
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: storage-system
+      ports:
+        - protocol: TCP
+          port: 8333

@@ -1,0 +1,8 @@
+apiVersion: v2
+name: sample-app
+description: Sovereign Full-Stack Django Diagnostic Hub utilizing PostgreSQL, Redis, RabbitMQ, and SeaweedFS S3
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+maintainers:
+  - name: Yggdrasil Sovereign Cloud Ops
