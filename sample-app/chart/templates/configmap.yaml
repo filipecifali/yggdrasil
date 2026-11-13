@@ -37,3 +37,7 @@ data:
   USE_S3: "{{ .Values.seaweedfs.enabled }}"
   AWS_S3_ENDPOINT_URL: {{ .Values.seaweedfs.endpointUrl | quote }}
   AWS_STORAGE_BUCKET_NAME: {{ .Values.seaweedfs.bucketName | quote }}
+
+  # Structured Logging for VictoriaLogs
+  LOG_FORMAT: {{ .Values.logging.format | default "json" | quote }}
+  LOG_LEVEL: {{ .Values.logging.level | default "INFO" | quote }}

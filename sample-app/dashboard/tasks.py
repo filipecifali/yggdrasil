@@ -224,5 +224,30 @@ def run_system_diagnostics(self, run_id_str):
         'completed_at': run.completed_at.isoformat()
     }, timeout=3600)
 
-    logger.info(f"DiagnosticRun {run.id} finished with status {run.status} in {total_duration_ms:.2f} ms")
+    # Update APM metrics if available in worker context
+    try:
+        from .views import (
+            DIAGNOSTIC_RUN_DURATION_SECONDS,
+            SERVICE_HEALTH_STATUS,
+            SERVICE_LATENCY_MILLISECONDS,
+        )
+        DIAGNOSTIC_RUN_DURATION_SECONDS.observe(total_duration_ms / 1000.0)
+        for svc, res in results.items():
+            status_val = 1 if res.get('status') == 'PASS' else 0
+            SERVICE_HEALTH_STATUS.labels(service=svc).set(status_val)
+            if 'latency_ms' in res:
+                SERVICE_LATENCY_MILLISECONDS.labels(service=svc).set(res['latency_ms'])
+    except Exception as apm_err:
+        logger.debug(f"APM metrics update skipped: {apm_err}")
+
+    logger.info(
+        f"DiagnosticRun {run.id} finished with status {run.status} in {total_duration_ms:.2f} ms",
+        extra={
+            "run_id": str(run.id),
+            "status": run.status,
+            "duration_ms": total_duration_ms,
+            "all_passed": all_passed,
+            "event": "diagnostic_completed"
+        }
+    )
     return {"status": run.status, "duration_ms": total_duration_ms, "results": results}

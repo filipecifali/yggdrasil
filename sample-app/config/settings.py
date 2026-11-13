@@ -22,6 +22,7 @@ CSRF_TRUSTED_ORIGINS = [
 
 # Application definition
 INSTALLED_APPS = [
+    'django_prometheus',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -35,6 +36,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'django_prometheus.middleware.PrometheusBeforeMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -42,6 +44,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'django_prometheus.middleware.PrometheusAfterMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -71,7 +74,7 @@ DB_HOST = os.environ.get('DB_HOST')
 if DB_HOST:
     DATABASES = {
         'default': {
-            'ENGINE': 'django.db.backends.postgresql',
+            'ENGINE': 'django_prometheus.db.backends.postgresql' if 'django_prometheus' in INSTALLED_APPS else 'django.db.backends.postgresql',
             'NAME': os.environ.get('DB_NAME', 'sample_app'),
             'USER': os.environ.get('DB_USER', 'sample_user'),
             'PASSWORD': os.environ.get('DB_PASSWORD', 'sample_pass'),
@@ -83,7 +86,7 @@ if DB_HOST:
 else:
     DATABASES = {
         'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
+            'ENGINE': 'django_prometheus.db.backends.sqlite3' if 'django_prometheus' in INSTALLED_APPS else 'django.db.backends.sqlite3',
             'NAME': BASE_DIR / 'db.sqlite3',
         }
     }
@@ -198,3 +201,48 @@ MEDIA_URL = 'media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# ==============================================================================
+# 5. STRUCTURED LOGGING FOR VICTORIALOGS / FLUENT-BIT (JSON LOGGING)
+# ==============================================================================
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'json': {
+            '()': 'pythonjsonlogger.jsonlogger.JsonFormatter',
+            'format': '%(asctime)s %(levelname)s %(name)s %(module)s %(funcName)s %(message)s',
+        },
+        'verbose': {
+            'format': '[{asctime}] {levelname} [{name}:{lineno}] {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console_json': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'json' if os.environ.get('LOG_FORMAT', 'json').lower() == 'json' else 'verbose',
+        },
+    },
+    'root': {
+        'handlers': ['console_json'],
+        'level': os.environ.get('LOG_LEVEL', 'INFO').upper(),
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console_json'],
+            'level': os.environ.get('DJANGO_LOG_LEVEL', 'INFO').upper(),
+            'propagate': False,
+        },
+        'dashboard': {
+            'handlers': ['console_json'],
+            'level': 'DEBUG' if DEBUG else 'INFO',
+            'propagate': False,
+        },
+        'celery': {
+            'handlers': ['console_json'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    },
+}

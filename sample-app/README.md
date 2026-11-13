@@ -7,7 +7,7 @@ A sovereign, cloud-native sample **Django 5.1** application with **Celery 5.4**,
 3. **RabbitMQ**: AMQP message broker for asynchronous job queueing.
 4. **SeaweedFS S3**: S3-compatible object storage via `boto3` and `django-storages`.
 
-All components are fully containerized, non-root hardened (UID 10001), packaged into a self-contained **Helm chart** following **Semantic Versioning (1.0.0)**, and designed for isolated ephemeral environments.
+All components are fully containerized, non-root hardened (UID 10001), packaged into a self-contained **Helm chart** following **Semantic Versioning (1.1.0)**, and designed for isolated ephemeral environments with native **VictoriaMetrics APM & Metrics** and **VictoriaLogs Structured Logging**.
 
 ---
 
@@ -94,7 +94,8 @@ sample-app/
         ├── in-namespace-redis.yaml
         ├── in-namespace-rabbitmq.yaml
         ├── httproute.yaml
-        └── networkpolicy.yaml
+        ├── networkpolicy.yaml
+        └── vmservicescrape.yaml
 ```
 
 ---
@@ -133,3 +134,26 @@ helm install pr-42 ./chart \
 | `/api/metrics` | `GET` | Summary metrics (total runs, pass/fail counts, success rate) |
 | `/healthz` | `GET` | Kubernetes Liveness Probe |
 | `/readyz` | `GET` | Kubernetes Readiness Probe (validates database connection) |
+| `/metrics` | `GET` | Prometheus / VictoriaMetrics scrape endpoint (Django, DB, cache & custom APM metrics) |
+
+---
+
+## 5. Observability: VictoriaMetrics APM & VictoriaLogs
+
+The application is natively pre-configured for sovereign observability:
+
+1. **VictoriaMetrics (`VMServiceScrape`)**:
+   - `VMAgent` in `monitoring-system` discovers and scrapes `/metrics` every 15s.
+   - Database connection pools, query latencies, cache hit/miss rates, and HTTP request metrics are exposed via `django-prometheus`.
+   - Custom APM instrumentation:
+     - `sample_app_diagnostic_runs_total{trigger_type="api"}`: Total diagnostic tasks dispatched.
+     - `sample_app_diagnostic_run_duration_seconds`: Histogram of full-stack execution latencies.
+     - `sample_app_service_health_status{service="postgres|redis|rabbitmq|seaweedfs"}`: Live dependency health gauges (1 = pass, 0 = fail).
+     - `sample_app_service_latency_ms{service="..."}`: Granular round-trip latency per dependency.
+
+2. **VictoriaLogs (JSON Log Streaming)**:
+   - Formatted using `python-json-logger` emitting ISO8601 timestamps, log levels, logger namespaces, module names, and custom attributes (`run_id`, `duration_ms`, `event`).
+   - Fluent-Bit daemonset automatically tails standard output and streams structured JSON lines into `vlsingle-yggdrasil-vlsingle:9428`.
+
+3. **Network Isolation Hardening**:
+   - `NetworkPolicy` allows incoming TCP port 8000 scraping exclusively from `monitoring-system` alongside `envoy-gateway-system`.

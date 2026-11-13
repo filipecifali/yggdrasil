@@ -34,3 +34,7 @@ data:
   USE_S3: "True"
   AWS_S3_ENDPOINT_URL: "http://seaweedfs-s3.storage-system.svc.cluster.local:8333"
   AWS_STORAGE_BUCKET_NAME: "sample-app-demo"
+
+  # Structured Logging for VictoriaLogs
+  LOG_FORMAT: "json"
+  LOG_LEVEL: "INFO"

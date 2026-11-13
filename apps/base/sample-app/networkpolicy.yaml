@@ -24,6 +24,14 @@ spec:
       ports:
         - protocol: TCP
           port: 8000
+    # 3. Allow VictoriaMetrics (VMAgent) to scrape /metrics on Django web service
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring-system
+      ports:
+        - protocol: TCP
+          port: 8000
   egress:
     # 1. Allow internal communication between Django, Celery, Postgres, Redis, and RabbitMQ
     - to:

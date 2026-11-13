@@ -494,8 +494,9 @@ fi
 if [ -f "sample-app/chart/templates/django-deployment.yaml" ] && \
    [ -f "sample-app/chart/templates/celery-deployment.yaml" ] && \
    [ -f "sample-app/chart/templates/httproute.yaml" ] && \
-   [ -f "sample-app/chart/templates/networkpolicy.yaml" ]; then
-  pass "Helm chart contains all core templates (Django, Celery, HTTPRoute, NetworkPolicy)"
+   [ -f "sample-app/chart/templates/networkpolicy.yaml" ] && \
+   [ -f "sample-app/chart/templates/vmservicescrape.yaml" ]; then
+  pass "Helm chart contains all core templates (Django, Celery, HTTPRoute, NetworkPolicy, VMServiceScrape)"
 else
   fail "Missing Helm templates" "sample-app/chart/templates is missing required workload manifests"
 fi
@@ -503,10 +504,22 @@ fi
 # 5. GitOps apps/base/sample-app integration
 if [ -f "apps/base/sample-app/kustomization.yaml" ] && \
    [ -f "apps/base/sample-app/externalsecret.yaml" ] && \
+   [ -f "apps/base/sample-app/vmservicescrape.yaml" ] && \
    grep -q "sample-app" apps/base/kustomization.yaml; then
   pass "Sample App integrated into root apps/base/kustomization.yaml with ExternalSecret Vault integration"
 else
   fail "GitOps integration missing" "apps/base/kustomization.yaml does not cleanly reference sample-app"
+fi
+
+# 6. Observability & APM / Metrics / VictoriaLogs validation
+if [ -f "sample-app/config/urls.py" ] && \
+   grep -q "django_prometheus" sample-app/config/urls.py && \
+   grep -q "JsonFormatter" sample-app/config/settings.py && \
+   grep -q "sample_app_diagnostic_runs_total" sample-app/dashboard/views.py && \
+   grep -q "monitoring-system" apps/base/sample-app/networkpolicy.yaml; then
+  pass "Sample App observability stack (Prometheus /metrics, APM instruments, VictoriaLogs JSON, NetworkPolicy egress/ingress) verified"
+else
+  fail "Observability incomplete" "sample-app missing required Prometheus, APM, or VictoriaLogs logging components"
 fi
 
 # ------------------------------------------------------------------------------

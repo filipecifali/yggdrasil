@@ -1,6 +1,6 @@
 # ==============================================================================
 # Sample App (Django + Celery) Helm Chart Values
-# SemVer: 1.0.0
+# SemVer: 1.1.0
 # Designed for isolated demo and ephemeral preview environments
 # ==============================================================================
 
@@ -9,7 +9,7 @@ django:
   replicaCount: 1
   image:
     repository: registry.yggdrasil.local/library/sample-app
-    tag: 1.0.0
+    tag: 1.1.0
     pullPolicy: IfNotPresent
   service:
     type: ClusterIP
@@ -111,7 +111,17 @@ gateway:
   namespace: envoy-gateway-system
   hostname: "sample.yggdrasil.local"
 
-# 6. Global Security Context & Node Pinning
+# 6. Observability: VictoriaMetrics & VictoriaLogs (Metrics, APM & Structured Logging)
+metrics:
+  enabled: true
+  interval: "15s"
+  scrapeTimeout: "10s"
+
+logging:
+  format: "json"
+  level: "INFO"
+
+# 7. Global Security Context & Node Pinning
 securityContext:
   runAsNonRoot: true
   runAsUser: 10001

@@ -1,0 +1,21 @@
+{{- if .Values.metrics.enabled }}
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMServiceScrape
+metadata:
+  name: {{ include "sample-app.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "sample-app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: web
+    yggdrasil.io/realm: midgard
+spec:
+  selector:
+    matchLabels:
+      {{- include "sample-app.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: web
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: {{ .Values.metrics.interval | default "15s" }}
+      scrapeTimeout: {{ .Values.metrics.scrapeTimeout | default "10s" }}
+{{- end }}

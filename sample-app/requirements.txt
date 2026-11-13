@@ -6,3 +6,5 @@ django-storages[boto3]>=1.14.4
 boto3>=1.35.0
 gunicorn>=23.0.0
 kombu>=5.4.0
+django-prometheus>=2.3.0
+python-json-logger>=2.0.7

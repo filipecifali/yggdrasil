@@ -5,10 +5,35 @@ from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.core.cache import cache
+from prometheus_client import Counter, Histogram, Gauge
 from .models import DiagnosticRun, ServiceCheck, S3DiagnosticFile
 from .tasks import run_system_diagnostics
 
 logger = logging.getLogger(__name__)
+
+# ==============================================================================
+# PROMETHEUS CUSTOM APM METRICS FOR VICTORIAMETRICS
+# ==============================================================================
+DIAGNOSTIC_RUNS_TOTAL = Counter(
+    'sample_app_diagnostic_runs_total',
+    'Total number of system diagnostic runs triggered',
+    ['trigger_type']
+)
+DIAGNOSTIC_RUN_DURATION_SECONDS = Histogram(
+    'sample_app_diagnostic_run_duration_seconds',
+    'Time spent completing system diagnostic runs across all 4 services',
+    buckets=[0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0]
+)
+SERVICE_HEALTH_STATUS = Gauge(
+    'sample_app_service_health_status',
+    'Current health status of integrated dependency (1 = healthy, 0 = unhealthy)',
+    ['service']
+)
+SERVICE_LATENCY_MILLISECONDS = Gauge(
+    'sample_app_service_latency_ms',
+    'Roundtrip latency in milliseconds to target dependency',
+    ['service']
+)
 
 
 def dashboard_view(request):
@@ -23,7 +48,7 @@ def dashboard_view(request):
         'recent_runs': recent_runs,
         'latest_run': latest_run,
         'cached_latest': cached_latest,
-        'app_version': '1.0.0',
+        'app_version': '1.1.0',
     }
     return render(request, 'dashboard/index.html', context)
 
@@ -35,6 +60,9 @@ def api_run_diagnostics(request):
     Triggers an asynchronous full-stack diagnostic run via Celery over RabbitMQ.
     Returns the newly created run ID immediately (non-blocking).
     """
+    DIAGNOSTIC_RUNS_TOTAL.labels(trigger_type='api').inc()
+    logger.info("Triggering diagnostic run via API", extra={"action": "run_diagnostics", "client_ip": request.META.get('REMOTE_ADDR')})
+
     run = DiagnosticRun.objects.create(status='PENDING')
     task = run_system_diagnostics.delay(str(run.id))
     run.celery_task_id = task.id
@@ -94,7 +122,7 @@ def api_latest_metrics(request):
 
     return JsonResponse({
         'app': 'sample-app-django',
-        'version': '1.0.0',
+        'version': '1.1.0',
         'total_runs': total_runs,
         'successful_runs': successful_runs,
         'failed_runs': failed_runs,

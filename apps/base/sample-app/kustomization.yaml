@@ -11,3 +11,4 @@ resources:
   - rabbitmq.yaml
   - httproute.yaml
   - networkpolicy.yaml
+  - vmservicescrape.yaml

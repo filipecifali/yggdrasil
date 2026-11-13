@@ -1,0 +1,20 @@
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMServiceScrape
+metadata:
+  name: sample-app
+  namespace: sample-app
+  labels:
+    app.kubernetes.io/name: sample-app
+    app.kubernetes.io/component: web
+    yggdrasil.io/realm: midgard
+    yggdrasil.io/tier: apps
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sample-app
+      app.kubernetes.io/component: web
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
+      scrapeTimeout: 10s
