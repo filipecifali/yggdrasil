@@ -77,6 +77,8 @@ spec:
   interval: 1h
   insecure: true
   url: oci://harbor.registry-system.svc.cluster.local/library
+  secretRef:
+    name: harbor-helm-credentials
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
