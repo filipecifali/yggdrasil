@@ -1,0 +1,59 @@
+# ==============================================================================
+# KEDA CRON SCALER REFERENCE TEMPLATE (Time-Based Auto-Scaling)
+# ==============================================================================
+# This template demonstrates how to configure schedule-driven scaling using
+# KEDA's built-in Cron Scaler.
+#
+# Use cases:
+#   1. Scale down dev/staging or non-critical workloads to 0 replicas during
+#      nights and weekends to preserve CPU, memory, and energy.
+#   2. Pre-warm batch processing or web services prior to peak business hours.
+#   3. Scale up replication or indexing workers during designated maintenance windows.
+#
+# HOW TO ENABLE ON A WORKLOAD:
+#   1. Set 'scaleTargetRef.name' to your target Deployment or StatefulSet.
+#   2. Ensure the target workload does NOT have competing HPA objects attached.
+#   3. Customize the timezone and cron expressions below.
+# ==============================================================================
+
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: cron-scheduled-workload-template
+  namespace: web-system
+  labels:
+    app.kubernetes.io/name: cron-scaler-template
+    yggdrasil.io/realm: sleipnir
+    yggdrasil.io/tier: serverless
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: echo-fn  # Replace with target deployment name
+  minReplicaCount: 0  # Off-schedule idle count (scales down to 0 when inactive)
+  maxReplicaCount: 5
+  cooldownPeriod: 60
+  pollingInterval: 30
+
+  triggers:
+    # --------------------------------------------------------------------------
+    # Trigger 1: Business Hours Scale-Up (Monday through Friday, 08:00 - 18:00)
+    # During this window, KEDA guarantees at least 'desiredReplicas' are running.
+    # --------------------------------------------------------------------------
+    - type: cron
+      metadata:
+        timezone: America/Sao_Paulo  # Standard IANA timezone (or Etc/UTC)
+        start: "0 8 * * 1-5"          # 08:00 AM on weekdays
+        end: "0 18 * * 1-5"           # 06:00 PM on weekdays
+        desiredReplicas: "2"
+
+    # --------------------------------------------------------------------------
+    # Trigger 2: Nightly Maintenance Window (Every night between 02:00 - 04:00)
+    # Pre-spawns workers to process nightly backups or replication jobs.
+    # --------------------------------------------------------------------------
+    - type: cron
+      metadata:
+        timezone: America/Sao_Paulo
+        start: "0 2 * * *"           # 02:00 AM daily
+        end: "0 4 * * *"             # 04:00 AM daily
+        desiredReplicas: "4"

@@ -1,0 +1,107 @@
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: pg-keda-auth
+  namespace: web-system
+  labels:
+    yggdrasil.io/realm: sleipnir
+    yggdrasil.io/tier: serverless
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: vault-backend
+  target:
+    name: pg-keda-auth
+    creationPolicy: Owner
+    template:
+      engineVersion: v2
+      data:
+        connection: "postgresql://{{ .username }}:{{ .password }}@yggdrasil-pg-rw.storage-system.svc.cluster.local:5432/app?sslmode=require"
+  data:
+    - secretKey: username
+      remoteRef:
+        key: storage/postgres-app
+        property: username
+    - secretKey: password
+      remoteRef:
+        key: storage/postgres-app
+        property: password
+---
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: pg-worker-auth
+  namespace: web-system
+  labels:
+    yggdrasil.io/realm: sleipnir
+    yggdrasil.io/tier: serverless
+spec:
+  secretTargetRef:
+    - parameter: connection
+      name: pg-keda-auth
+      key: connection
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledJob
+metadata:
+  name: pg-batch-worker
+  namespace: web-system
+  labels:
+    app: pg-batch-worker
+    yggdrasil.io/realm: sleipnir
+    yggdrasil.io/tier: serverless
+spec:
+  jobTargetRef:
+    parallelism: 1
+    completions: 1
+    activeDeadlineSeconds: 120
+    backoffLimit: 2
+    template:
+      metadata:
+        labels:
+          app: pg-batch-worker
+          yggdrasil.io/realm: sleipnir
+      spec:
+        restartPolicy: Never
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 65534
+          runAsGroup: 65534
+          seccompProfile:
+            type: RuntimeDefault
+        containers:
+          - name: batch-processor
+            image: registry.yggdrasil.local/library/curl:8.12.1
+            command:
+              - /bin/sh
+              - -c
+              - "echo 'PostgreSQL batch task worker executed successfully'; exit 0"
+            resources:
+              requests:
+                cpu: 20m
+                memory: 32Mi
+              limits:
+                cpu: 100m
+                memory: 64Mi
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop:
+                  - ALL
+              runAsNonRoot: true
+              runAsUser: 65534
+              runAsGroup: 65534
+              seccompProfile:
+                type: RuntimeDefault
+  pollingInterval: 15
+  maxReplicaCount: 3
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 2
+  triggers:
+    - type: postgresql
+      metadata:
+        query: "SELECT count(*) FROM pg_stat_activity WHERE state = 'active';"
+        targetQueryValue: "50"
+      authenticationRef:
+        name: pg-worker-auth

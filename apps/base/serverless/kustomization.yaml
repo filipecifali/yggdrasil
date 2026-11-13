@@ -4,3 +4,5 @@ resources:
   - echo-function.yaml
   - httproute.yaml
   - referencegrant.yaml
+  - rabbitmq-scaledobject.yaml
+  - postgresql-scaledjob.yaml

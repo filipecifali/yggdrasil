@@ -74,6 +74,7 @@ yggdrasil/
 │   │   ├── monitoring/                 # VictoriaMetrics VMSingle, VMAgent & HTTPRoute
 │   │   ├── registry/                   # Harbor HelmRelease & HTTPRoute
 │   │   ├── security/                   # PKI ClusterIssuers, HashiCorp Vault, ClusterSecretStore & NetworkPolicies
+│   │   ├── serverless/                 # Serverless scale-to-zero functions, RabbitMQ queues, PostgreSQL batch jobs & Cron templates
 │   │   ├── storage/                    # CloudNativePG Cluster & SeaweedFS S3 HelmRelease
 │   │   └── web/                        # Unprivileged NGINX web server, MTA-STS & KEDA ScaledObject
 │   └── overlays/

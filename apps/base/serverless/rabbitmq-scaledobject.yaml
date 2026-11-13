@@ -1,0 +1,113 @@
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: rabbitmq-keda-auth
+  namespace: web-system
+  labels:
+    yggdrasil.io/realm: sleipnir
+    yggdrasil.io/tier: serverless
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: vault-backend
+  target:
+    name: rabbitmq-keda-auth
+    creationPolicy: Owner
+    template:
+      engineVersion: v2
+      data:
+        host: "amqp://zulip:{{ .password }}@zulip-rabbitmq.chat-system.svc.cluster.local:5672/%2F"
+  data:
+    - secretKey: password
+      remoteRef:
+        key: chat/zulip
+        property: rabbitmq-password
+---
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: rabbitmq-worker-auth
+  namespace: web-system
+  labels:
+    yggdrasil.io/realm: sleipnir
+    yggdrasil.io/tier: serverless
+spec:
+  secretTargetRef:
+    - parameter: host
+      name: rabbitmq-keda-auth
+      key: host
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rabbitmq-worker
+  namespace: web-system
+  labels:
+    app: rabbitmq-worker
+    yggdrasil.io/realm: sleipnir
+    yggdrasil.io/tier: serverless
+spec:
+  replicas: 0
+  selector:
+    matchLabels:
+      app: rabbitmq-worker
+  template:
+    metadata:
+      labels:
+        app: rabbitmq-worker
+        yggdrasil.io/realm: sleipnir
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: worker
+          image: registry.yggdrasil.local/library/nginx-unprivileged:1.27-alpine
+          ports:
+            - containerPort: 8080
+              name: http
+          resources:
+            requests:
+              cpu: 20m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: rabbitmq-worker-scaler
+  namespace: web-system
+  labels:
+    app: rabbitmq-worker
+    yggdrasil.io/realm: sleipnir
+    yggdrasil.io/tier: serverless
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: rabbitmq-worker
+  minReplicaCount: 0
+  maxReplicaCount: 5
+  pollingInterval: 15
+  cooldownPeriod: 30
+  triggers:
+    - type: rabbitmq
+      metadata:
+        protocol: amqp
+        queueName: task-queue
+        mode: QueueLength
+        value: "5"
+      authenticationRef:
+        name: rabbitmq-worker-auth

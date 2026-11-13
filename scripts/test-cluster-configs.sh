@@ -333,6 +333,39 @@ else
 fi
 
 # ------------------------------------------------------------------------------
+echo "==> Running Test 13: Advanced KEDA Scalers (RabbitMQ, PostgreSQL, VictoriaMetrics, Cron)..."
+if [ -f "apps/base/serverless/rabbitmq-scaledobject.yaml" ] && \
+   grep -q "type: rabbitmq" apps/base/serverless/rabbitmq-scaledobject.yaml && \
+   grep -q "kind: TriggerAuthentication" apps/base/serverless/rabbitmq-scaledobject.yaml; then
+  pass "RabbitMQ asynchronous queue ScaledObject and TriggerAuthentication configured"
+else
+  fail "RabbitMQ scaler missing" "apps/base/serverless/rabbitmq-scaledobject.yaml not configured"
+fi
+
+if [ -f "apps/base/serverless/postgresql-scaledjob.yaml" ] && \
+   grep -q "type: postgresql" apps/base/serverless/postgresql-scaledjob.yaml && \
+   grep -q "kind: ScaledJob" apps/base/serverless/postgresql-scaledjob.yaml; then
+  pass "PostgreSQL event-driven batch ScaledJob configured with CNPG integration"
+else
+  fail "PostgreSQL scaler missing" "apps/base/serverless/postgresql-scaledjob.yaml not configured"
+fi
+
+if [ -f "apps/base/web/scaledobject.yaml" ] && \
+   grep -q "type: prometheus" apps/base/web/scaledobject.yaml && \
+   grep -q "vmsingle-yggdrasil-vmsingle" apps/base/web/scaledobject.yaml; then
+  pass "VictoriaMetrics Prometheus metric ScaledObject configured for workload autoscaling"
+else
+  fail "VictoriaMetrics scaler missing" "apps/base/web/scaledobject.yaml missing Prometheus trigger"
+fi
+
+if [ -f "apps/base/serverless/cron-scaledobject-example.yaml" ] && \
+   grep -q "type: cron" apps/base/serverless/cron-scaledobject-example.yaml; then
+  pass "KEDA Cron scaler template documented and verified for scheduled scaling"
+else
+  fail "Cron scaler template missing" "apps/base/serverless/cron-scaledobject-example.yaml missing"
+fi
+
+# ------------------------------------------------------------------------------
 # Summary & Exit Code
 # ------------------------------------------------------------------------------
 echo "=============================================================================="

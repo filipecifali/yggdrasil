@@ -16,10 +16,6 @@ spec:
   minReplicaCount: 1
   maxReplicaCount: 5
   triggers:
-    - type: cpu
-      metricType: Utilization
-      metadata:
-        value: "75"
     - type: prometheus
       metadata:
         serverAddress: "http://vmsingle-yggdrasil-vmsingle.monitoring-system.svc.cluster.local:8429"
