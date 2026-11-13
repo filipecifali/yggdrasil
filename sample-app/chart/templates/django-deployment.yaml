@@ -82,3 +82,15 @@ spec:
             {{- toYaml .Values.django.readinessProbe | nindent 12 }}
           resources:
             {{- toYaml .Values.django.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

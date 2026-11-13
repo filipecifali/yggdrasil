@@ -87,8 +87,15 @@ spec:
         redis:
           size: 1Gi
 
-    # Lightweight footprint for local Kind simulation
+    # Automated Vulnerability Scanning & Image Provenance (SOC 2 Control CC6.5)
     trivy:
-      enabled: false
+      enabled: true
+      resources:
+        requests:
+          cpu: 50m
+          memory: 256Mi
+        limits:
+          cpu: 500m
+          memory: 512Mi
     notary:
       enabled: false

@@ -9,7 +9,7 @@ spec:
   image:
     repository: registry.yggdrasil.local/library/victoria-logs
     tag: v1.53.0
-  retentionPeriod: "14d"
+  retentionPeriod: "365d"
   nodeSelector:
     yggdrasil.io/node-pool: platform
   storage:
@@ -17,7 +17,7 @@ spec:
       - ReadWriteOnce
     resources:
       requests:
-        storage: 10Gi
+        storage: 20Gi
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute

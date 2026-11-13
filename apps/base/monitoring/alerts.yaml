@@ -73,6 +73,28 @@ spec:
             summary: "TLS Certificate expiring soon: {{ $labels.name }}"
             description: "Certificate {{ $labels.namespace }}/{{ $labels.name }} expires in less than 14 days."
 
+        - alert: UnauthorizedAPIAccessSpike
+          expr: sum(rate(apiserver_request_total{code=~"401|403"}[5m])) > 5
+          for: 2m
+          labels:
+            severity: critical
+            realm: hlidskjalf
+            soc2_control: CC7.3
+          annotations:
+            summary: "Kubernetes API unauthorized access spike detected"
+            description: "Kubernetes API server reports more than 5 unauthorized (HTTP 401/403) requests/sec over the last 5 minutes."
+
+        - alert: VaultSealedStateDetected
+          expr: vault_core_unsealed == 0
+          for: 1m
+          labels:
+            severity: critical
+            realm: hlidskjalf
+            soc2_control: CC6.1
+          annotations:
+            summary: "HashiCorp Vault is in a sealed state"
+            description: "Vault core is reported as sealed. Automated auto-unseal or operator intervention required."
+
     - name: storage_and_db.rules
       rules:
         - alert: PostgresClusterDown

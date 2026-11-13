@@ -1,0 +1,186 @@
+# ==============================================================================
+# default-tenant-networkpolicies.yaml
+# SOC 2 Control CC6.6: Boundary Protection & Lateral Movement Prevention
+# Enforces default-deny on ingress/egress across tenant namespaces with explicit
+# allowlists for CoreDNS discovery and Bifrost Gateway ingress.
+# ==============================================================================
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-tenant-isolation
+  namespace: git-system
+  labels:
+    yggdrasil.io/realm: valhalla
+    yggdrasil.io/tier: apps
+    soc2.compliance/control: CC6.6
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # 1. Allow traffic within git-system namespace
+    - from:
+        - podSelector: {}
+    # 2. Allow traffic from Envoy Gateway
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: envoy-gateway-system
+      ports:
+        - protocol: TCP
+          port: 3000
+        - protocol: TCP
+          port: 2222
+    # 3. Allow Prometheus scraping from monitoring-system
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring-system
+  egress:
+    # 1. Allow intra-namespace traffic
+    - to:
+        - podSelector: {}
+    # 2. Allow CoreDNS
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # 3. Allow PostgreSQL in storage-system
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: storage-system
+      ports:
+        - protocol: TCP
+          port: 5432
+    # 4. Allow SeaweedFS S3
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: storage-system
+      ports:
+        - protocol: TCP
+          port: 8333
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-tenant-isolation
+  namespace: mail-system
+  labels:
+    yggdrasil.io/realm: huginn-muninn
+    yggdrasil.io/tier: apps
+    soc2.compliance/control: CC6.6
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # 1. Allow intra-namespace communication (Roundcube -> Mailserver)
+    - from:
+        - podSelector: {}
+    # 2. Allow Envoy Gateway to Roundcube web UI
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: envoy-gateway-system
+      ports:
+        - protocol: TCP
+          port: 80
+    # 3. Allow incoming SMTP / IMAP from external / gateway
+    - from:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 25
+        - protocol: TCP
+          port: 143
+        - protocol: TCP
+          port: 587
+        - protocol: TCP
+          port: 993
+  egress:
+    # 1. Allow intra-namespace traffic
+    - to:
+        - podSelector: {}
+    # 2. Allow CoreDNS
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # 3. Allow ClamAV / external mail transport relay
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 25
+        - protocol: TCP
+          port: 465
+        - protocol: TCP
+          port: 587
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-tenant-isolation
+  namespace: chat-system
+  labels:
+    yggdrasil.io/realm: folkvangr
+    yggdrasil.io/tier: apps
+    soc2.compliance/control: CC6.6
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # 1. Allow intra-namespace traffic
+    - from:
+        - podSelector: {}
+    # 2. Allow Envoy Gateway
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: envoy-gateway-system
+      ports:
+        - protocol: TCP
+          port: 80
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 9000
+    # 3. Allow Prometheus scraping
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring-system
+  egress:
+    # 1. Allow intra-namespace traffic
+    - to:
+        - podSelector: {}
+    # 2. Allow CoreDNS
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # 3. Allow Mail delivery to mail-system
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: mail-system
+      ports:
+        - protocol: TCP
+          port: 25
+        - protocol: TCP
+          port: 587

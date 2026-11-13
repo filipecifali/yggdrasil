@@ -4,6 +4,7 @@ resources:
   - namespaces.yaml
   - limitranges.yaml
   - resourcequotas.yaml
+  - networkpolicies.yaml
   - harbor-credentials-externalsecret.yaml
   - helm-repositories.yaml
   - gateway
