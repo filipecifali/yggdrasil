@@ -375,6 +375,58 @@ else
 fi
 
 # ------------------------------------------------------------------------------
+echo "==> Running Test 14: Cross-Cluster Replication Subsystems (CNPG, S3, VM, Mail, RabbitMQ, CoreDNS)..."
+if [ -f "apps/overlays/jotunheim/postgres-replica.yaml" ] && \
+   grep -q "enabled: true" apps/overlays/jotunheim/postgres-replica.yaml && \
+   grep -q "source: yggdrasil-pg-primary" apps/overlays/jotunheim/postgres-replica.yaml; then
+  pass "CloudNativePG cross-cluster standby replica clusters configured for instant promotion"
+else
+  fail "CNPG replica missing" "apps/overlays/jotunheim/postgres-replica.yaml not configured"
+fi
+
+if [ -f "apps/overlays/jotunheim/seaweedfs-s3-replication.yaml" ] && \
+   grep -q "seaweedfs-cross-cluster-s3-sync" apps/overlays/jotunheim/seaweedfs-s3-replication.yaml && \
+   grep -q "readOnlyRootFilesystem: true" apps/overlays/jotunheim/seaweedfs-s3-replication.yaml; then
+  pass "SeaweedFS cross-cluster S3 continuous sync CronJob configured with PSA Restricted profile"
+else
+  fail "SeaweedFS S3 sync missing" "apps/overlays/jotunheim/seaweedfs-s3-replication.yaml not configured"
+fi
+
+if [ -f "apps/overlays/jotunheim/monitoring-cross-cluster.yaml" ] && \
+   grep -q "10.4.0.1:8429" apps/overlays/jotunheim/monitoring-cross-cluster.yaml; then
+  pass "VictoriaMetrics VMAgent cross-cluster dual remote-write telemetry configured"
+else
+  fail "VictoriaMetrics dual-write missing" "apps/overlays/jotunheim/monitoring-cross-cluster.yaml not configured"
+fi
+
+if [ -f "apps/overlays/jotunheim/mail-replication.yaml" ] && \
+   grep -q "OVERRIDE_HOSTNAME: \"mail.jotunheim.local\"" apps/overlays/jotunheim/mail-replication.yaml; then
+  pass "Docker-Mailserver secondary MX and relay failover configured for Jotunheim"
+else
+  fail "Mail replication missing" "apps/overlays/jotunheim/mail-replication.yaml not configured"
+fi
+
+if [ -f "apps/overlays/jotunheim/rabbitmq-federation.yaml" ] && \
+   grep -q "yggdrasil-primary-upstream" apps/overlays/jotunheim/rabbitmq-federation.yaml; then
+  pass "RabbitMQ cross-cluster federation upstream and policy configured for event replication"
+else
+  fail "RabbitMQ federation missing" "apps/overlays/jotunheim/rabbitmq-federation.yaml not configured"
+fi
+
+if [ -f "apps/overlays/jotunheim/dns-secondary.yaml" ] && \
+   grep -q "transfer from 10.4.0.1:53" apps/overlays/jotunheim/dns-secondary.yaml; then
+  pass "CoreDNS cross-cluster secondary zone transfer (AXFR) configured for zero-latency local resolution"
+else
+  fail "CoreDNS AXFR missing" "apps/overlays/jotunheim/dns-secondary.yaml not configured"
+fi
+
+if [ -f "docs/cross-cluster-replication-guide.md" ]; then
+  pass "Comprehensive Cross-Cluster Replication and Disaster Recovery guide documented"
+else
+  fail "Replication guide missing" "docs/cross-cluster-replication-guide.md missing"
+fi
+
+# ------------------------------------------------------------------------------
 # Summary & Exit Code
 # ------------------------------------------------------------------------------
 echo "=============================================================================="

@@ -6,3 +6,10 @@ resources:
   - dns-nodeport.yaml
   - mail-nodeport.yaml
   - harbor-nodeport.yaml
+  - seaweedfs-s3-replication.yaml
+  - rabbitmq-federation.yaml
+patches:
+  - path: postgres-replica.yaml
+  - path: monitoring-cross-cluster.yaml
+  - path: mail-replication.yaml
+  - path: dns-secondary.yaml

@@ -1,0 +1,61 @@
+# ==============================================================================
+# CloudNativePG Cross-Cluster Replica Cluster Configuration (Jotunheim)
+# Configures storage-system/yggdrasil-pg and auth-system/authentik-pg as standby
+# replica clusters continuously streaming from Yggdrasil primary via Barman S3 & mesh.
+# In a disaster event: 'kubectl cnpg promote <cluster>' promotes instantly to read-write.
+# ==============================================================================
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: yggdrasil-pg
+  namespace: storage-system
+  labels:
+    yggdrasil.io/realm: nidavellir
+    yggdrasil.io/cluster-role: standby-replica
+spec:
+  replica:
+    enabled: true
+    source: yggdrasil-pg-primary
+  externalClusters:
+    - name: yggdrasil-pg-primary
+      barmanObjectStore:
+        destinationPath: "s3://cnpg-backups/yggdrasil-pg/"
+        endpointURL: "http://seaweedfs-s3.storage-system.svc.cluster.local:8333"
+        s3Credentials:
+          accessKeyId:
+            name: cnpg-s3-backup-secret
+            key: ACCESS_KEY_ID
+          secretAccessKey:
+            name: cnpg-s3-backup-secret
+            key: ACCESS_SECRET_KEY
+        wal:
+          compression: gzip
+          maxParallel: 1
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: authentik-pg
+  namespace: auth-system
+  labels:
+    yggdrasil.io/realm: gladsheim
+    yggdrasil.io/cluster-role: standby-replica
+spec:
+  replica:
+    enabled: true
+    source: authentik-pg-primary
+  externalClusters:
+    - name: authentik-pg-primary
+      barmanObjectStore:
+        destinationPath: "s3://cnpg-backups/authentik-pg/"
+        endpointURL: "http://seaweedfs-s3.storage-system.svc.cluster.local:8333"
+        s3Credentials:
+          accessKeyId:
+            name: authentik-cnpg-s3-backup-secret
+            key: ACCESS_KEY_ID
+          secretAccessKey:
+            name: authentik-cnpg-s3-backup-secret
+            key: ACCESS_SECRET_KEY
+        wal:
+          compression: gzip
+          maxParallel: 1

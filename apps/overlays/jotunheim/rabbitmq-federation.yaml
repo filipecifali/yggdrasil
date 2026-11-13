@@ -1,0 +1,41 @@
+# ==============================================================================
+# RabbitMQ Cross-Cluster Federation & Event Queue Replication (Jotunheim)
+# Configures RabbitMQ federation upstream pointing to Yggdrasil primary,
+# permitting event mirroring, task dispatching, and KEDA multi-cluster scaling.
+# ==============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rabbitmq-federation-config
+  namespace: chat-system
+  labels:
+    app.kubernetes.io/name: zulip-rabbitmq
+    yggdrasil.io/realm: folkvangr
+    yggdrasil.io/tier: event-replication
+data:
+  rabbitmq_federation.json: |
+    {
+      "upstreams": [
+        {
+          "name": "yggdrasil-primary-upstream",
+          "vhost": "/",
+          "uri": "amqp://zulip:ChangeMe123!@10.4.0.1:5672/%2F",
+          "ack-mode": "on-confirm",
+          "trust-user-id": true,
+          "reconnect-delay": 5,
+          "max-hops": 1
+        }
+      ],
+      "policies": [
+        {
+          "vhost": "/",
+          "name": "federate-task-queue",
+          "pattern": "^task-.*",
+          "apply-to": "queues",
+          "definition": {
+            "federation-upstream-set": "all"
+          },
+          "priority": 10
+        }
+      ]
+    }

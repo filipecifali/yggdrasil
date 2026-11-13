@@ -1,0 +1,21 @@
+# ==============================================================================
+# VictoriaMetrics Cross-Cluster Dual-Write & Metric Federation (Jotunheim)
+# Patches VMAgent to write metrics locally AND push telemetry over Kilo mesh
+# to Yggdrasil primary VMSingle, ensuring complete cross-region observability survival.
+# ==============================================================================
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMAgent
+metadata:
+  name: yggdrasil-vmagent
+  namespace: monitoring-system
+  labels:
+    yggdrasil.io/realm: hlidskjalf
+    yggdrasil.io/replication: dual-write
+spec:
+  remoteWrite:
+    # 1. Local Jotunheim VMSingle TSDB
+    - url: "http://vmsingle-yggdrasil-vmsingle.monitoring-system.svc.cluster.local:8429/api/v1/write"
+    # 2. Remote Yggdrasil Primary VMSingle TSDB (over Kilo WireGuard Mesh)
+    - url: "http://10.4.0.1:8429/api/v1/write"
+      extraArgs:
+        max_disk_usage_per_url: "1GB"
