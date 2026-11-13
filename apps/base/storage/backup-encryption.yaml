@@ -1,0 +1,33 @@
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: backup-encryption-key
+  namespace: storage-system
+  labels:
+    yggdrasil.io/realm: nidavellir
+    yggdrasil.io/tier: platform
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: vault-backend
+  target:
+    name: backup-encryption-key
+    creationPolicy: Owner
+  data:
+    - secretKey: PUBLIC_KEY
+      remoteRef:
+        key: storage/backup-encryption
+        property: public_key
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backup-encryption-pubkey
+  namespace: storage-system
+  labels:
+    yggdrasil.io/realm: nidavellir
+    yggdrasil.io/tier: platform
+data:
+  # Asymmetric age recipient public key (safe to be world-readable across the cluster)
+  AGE_RECIPIENT: "age1ql3z7hjyfkpw34dssm7v9dtzn6rvs2xsmjp6slum6m34uvlp8sms2qqpw5"

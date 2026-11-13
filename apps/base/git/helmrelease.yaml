@@ -28,6 +28,36 @@ spec:
         key: git/forgejo-admin
         property: email
 ---
+# Forgejo database credentials pulled from Vault via ESO
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: forgejo-db-secret
+  namespace: git-system
+  labels:
+    yggdrasil.io/realm: valhalla
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: vault-backend
+  target:
+    name: forgejo-db-secret
+    creationPolicy: Owner
+  data:
+    - secretKey: DB_USER
+      remoteRef:
+        key: git/forgejo-db
+        property: username
+    - secretKey: DB_PASSWD
+      remoteRef:
+        key: git/forgejo-db
+        property: password
+    - secretKey: DB_NAME
+      remoteRef:
+        key: git/forgejo-db
+        property: database
+---
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
@@ -90,7 +120,12 @@ spec:
       config:
         APP_NAME: "Yggdrasil Git (Valhalla)"
         database:
-          DB_TYPE: sqlite3
+          DB_TYPE: postgres
+          HOST: yggdrasil-pg-rw.storage-system.svc.cluster.local:5432
+          NAME: forgejo
+          USER: forgejo
+          PASSWD: "ChangeMe123!"
+          SSL_MODE: require
         server:
           DOMAIN: git.yggdrasil.local
           ROOT_URL: https://git.yggdrasil.local/

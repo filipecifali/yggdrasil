@@ -9,11 +9,15 @@ resources:
 patches:
   - target:
       kind: CronJob
-      name: .*
+      name: zulip-postgres-backup
     patch: |-
-      apiVersion: batch/v1
+      - op: add
+        path: /spec/suspend
+        value: true
+  - target:
       kind: CronJob
-      metadata:
-        name: all-cronjobs
-      spec:
-        suspend: true
+      name: vault-raft-s3-backup
+    patch: |-
+      - op: add
+        path: /spec/suspend
+        value: true

@@ -116,23 +116,36 @@ vault kv put secret/storage/s3-credentials \
   ACCESS_KEY_ID="yggdrasil-local-access-key" \
   ACCESS_SECRET_KEY="yggdrasil-local-secret-key-change-me"
 
+# 3c. Backup Encryption Keys (Pattern A: Asymmetric age)
+vault kv put secret/storage/backup-encryption \
+  public_key="age1ql3z7hjyfkpw34dssm7v9dtzn6rvs2xsmjp6slum6m34uvlp8sms2qqpw5" \
+  private_key="AGE-SECRET-KEY-1E7UQG09R823489D0SJDFKLSDKFJLKSJDFKLJSDKLFJSDKLFJKLSDJ"
+
 # 4. CloudNativePG PostgreSQL App User (storage-system/yggdrasil-pg-app-user)
 vault kv put secret/storage/postgres-app \
   username="app" \
   password="ChangeMe123!"
 
-# 5. Forgejo Admin & Runner (git-system/forgejo-admin-secret & forgejo-runner-secret)
+# 5. Forgejo Admin & Runner & Database (git-system)
 vault kv put secret/git/forgejo-admin \
   username="yggdrasil-admin" \
   password="ChangeMe123!" \
   email="admin@yggdrasil.local"
 
+vault kv put secret/git/forgejo-db \
+  username="forgejo" \
+  password="ChangeMe123!" \
+  database="forgejo"
+
 vault kv put secret/git/forgejo-runner \
   runner-token="${RUNNER_TOKEN}"
 
-# 6. Roundcube Webmail DES Key (mail-system/roundcube-secret)
+# 6. Roundcube Webmail Secrets & Database (mail-system)
 vault kv put secret/mail/roundcube \
-  ROUNDCUBEMAIL_DES_KEY="yggdrasil-roundcube-24b!"
+  ROUNDCUBEMAIL_DES_KEY="yggdrasil-roundcube-24b!" \
+  db-user="roundcube" \
+  db-password="ChangeMe123!" \
+  db-name="roundcube"
 
 # 7. Authentik Identity & DB (auth-system/authentik-secrets & authentik-pg-user)
 vault kv put secret/auth/authentik-db \

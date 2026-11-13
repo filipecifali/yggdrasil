@@ -55,30 +55,38 @@ spec:
                   mountPath: /etc/vault-keys
                   readOnly: true
           containers:
-            - name: upload-s3
-              image: registry.yggdrasil.local/library/curl:8.12.1
+            - name: encrypt-and-upload-s3
+              image: registry.yggdrasil.local/library/backup-tools:v1.0.0
               securityContext:
                 allowPrivilegeEscalation: false
                 readOnlyRootFilesystem: true
                 capabilities:
                   drop:
                     - ALL
+              env:
+                - name: AGE_RECIPIENT
+                  value: "age1ql3z7hjyfkpw34dssm7v9dtzn6rvs2xsmjp6slum6m34uvlp8sms2qqpw5"
               command:
                 - /bin/sh
                 - -c
                 - |
-                  set -eu
+                  set -euo pipefail
                   TIMESTAMP=$(date +%Y%m%d%H%M)
-                  TARGET="vault-snapshot-${TIMESTAMP}.snap"
-                  echo "==> Uploading snapshot to SeaweedFS S3 (/buckets/vault-backups/${TARGET})..."
-                  curl -sf -F "file=@/backup/vault-raft.snap;filename=${TARGET}" \
-                    "http://seaweedfs-filer.storage-system.svc.cluster.local:8888/buckets/vault-backups/"
-                  echo "==> Vault Raft backup completed successfully: ${TARGET}"
+                  TARGET="vault-snapshot-${TIMESTAMP}.snap.age"
+                  echo "==> Encrypting snapshot with age and uploading to S3..."
+                  age -r "${AGE_RECIPIENT}" < /backup/vault-raft.snap \
+                    | curl -sf -F "file=@-;filename=${TARGET}" \
+                        "http://seaweedfs-filer.storage-system.svc.cluster.local:8888/buckets/vault-backups/"
+                  echo "==> Vault Raft encrypted backup completed successfully: ${TARGET}"
               volumeMounts:
                 - name: backup-volume
                   mountPath: /backup
+                - name: tmp
+                  mountPath: /tmp
           volumes:
             - name: backup-volume
+              emptyDir: {}
+            - name: tmp
               emptyDir: {}
             - name: vault-init-keys
               secret:

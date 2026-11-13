@@ -20,21 +20,18 @@ spec:
       remoteRef:
         key: mail/roundcube
         property: ROUNDCUBEMAIL_DES_KEY
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: roundcube-db
-  namespace: mail-system
-  labels:
-    app.kubernetes.io/name: roundcube
-    yggdrasil.io/realm: huginn-muninn
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 1Gi
+    - secretKey: DB_USER
+      remoteRef:
+        key: mail/roundcube
+        property: db-user
+    - secretKey: DB_PASSWORD
+      remoteRef:
+        key: mail/roundcube
+        property: db-password
+    - secretKey: DB_NAME
+      remoteRef:
+        key: mail/roundcube
+        property: db-name
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -87,7 +84,20 @@ spec:
                 name: roundcube-secret
           env:
             - name: ROUNDCUBEMAIL_DB_TYPE
-              value: "sqlite"
+              value: "pgsql"
+            - name: ROUNDCUBEMAIL_DB_HOST
+              value: "yggdrasil-pg-rw.storage-system.svc.cluster.local"
+            - name: ROUNDCUBEMAIL_DB_PORT
+              value: "5432"
+            - name: ROUNDCUBEMAIL_DB_USER
+              value: "roundcube"
+            - name: ROUNDCUBEMAIL_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: roundcube-secret
+                  key: DB_PASSWORD
+            - name: ROUNDCUBEMAIL_DB_NAME
+              value: "roundcube"
             - name: ROUNDCUBEMAIL_SKIN
               value: "elastic"
             - name: ROUNDCUBEMAIL_DEFAULT_HOST
@@ -98,9 +108,6 @@ spec:
               value: "docker-mailserver.mail-system.svc.cluster.local"
             - name: ROUNDCUBEMAIL_SMTP_PORT
               value: "25"
-          volumeMounts:
-            - name: db
-              mountPath: /var/roundcube/db
           readinessProbe:
             httpGet:
               path: /
@@ -113,10 +120,6 @@ spec:
               port: http
             initialDelaySeconds: 20
             periodSeconds: 20
-      volumes:
-        - name: db
-          persistentVolumeClaim:
-            claimName: roundcube-db
 ---
 apiVersion: v1
 kind: Service

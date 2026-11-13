@@ -523,6 +523,66 @@ else
 fi
 
 # ------------------------------------------------------------------------------
+# Test 17: Database PostgreSQL Migrations & Asymmetric Age Backup Encryption
+# ------------------------------------------------------------------------------
+echo "==> Running Test 17: Database PostgreSQL Migrations & Asymmetric Age Backup Encryption..."
+
+# 1. Forgejo migrated from SQLite to CloudNativePG PostgreSQL
+if grep -q "DB_TYPE: postgres" apps/base/git/helmrelease.yaml && \
+   grep -q "yggdrasil-pg-rw.storage-system.svc.cluster.local" apps/base/git/helmrelease.yaml && \
+   [ ! -f "apps/base/git/backup-cronjob.yaml" ]; then
+  pass "Forgejo configured with CloudNativePG PostgreSQL; SQLite backup CronJob removed"
+else
+  fail "Forgejo database check failed" "Forgejo is not properly migrated to PostgreSQL or still has SQLite artifacts"
+fi
+
+# 2. Roundcube migrated from SQLite to CloudNativePG PostgreSQL
+if grep -q "ROUNDCUBEMAIL_DB_TYPE" apps/base/mail/roundcube.yaml && \
+   grep -q "pgsql" apps/base/mail/roundcube.yaml && \
+   grep -q "yggdrasil-pg-rw.storage-system.svc.cluster.local" apps/base/mail/roundcube.yaml && \
+   ! grep -q "roundcube-db" apps/base/mail/roundcube.yaml && \
+   [ ! -f "apps/base/mail/backup-cronjob.yaml" ]; then
+  pass "Roundcube configured with CloudNativePG PostgreSQL; SQLite backup CronJob and PVC removed"
+else
+  fail "Roundcube database check failed" "Roundcube is not properly migrated to PostgreSQL or still has SQLite artifacts"
+fi
+
+# 3. Pattern A backup-tools Dockerfile specification
+if [ -f "scripts/backup-tools/Dockerfile" ] && \
+   grep -q "age" scripts/backup-tools/Dockerfile && \
+   grep -q "postgresql16-client" scripts/backup-tools/Dockerfile && \
+   grep -q "USER 10001:10001" scripts/backup-tools/Dockerfile; then
+  pass "Pattern A hardened backup-tools Dockerfile defined (non-root UID 10001, age, postgresql16-client)"
+else
+  fail "Backup-tools Dockerfile invalid" "Dockerfile missing required utilities or non-root security context"
+fi
+
+# 4. Asymmetric age public key and ExternalSecret configuration
+if [ -f "apps/base/storage/backup-encryption.yaml" ] && \
+   grep -q "age1" apps/base/storage/backup-encryption.yaml && \
+   grep -q "backup-encryption.yaml" apps/base/storage/kustomization.yaml; then
+  pass "Storage base defines ExternalSecret and ConfigMap with age public recipient key"
+else
+  fail "Backup encryption config missing" "apps/base/storage/backup-encryption.yaml missing or not in kustomization"
+fi
+
+# 5. Backup CronJobs encrypt via age streaming
+if grep -q 'age -r "${AGE_RECIPIENT}"' apps/base/chat/backup-cronjob.yaml && \
+   grep -q 'age -r "${AGE_RECIPIENT}"' apps/base/security/vault-backup-cronjob.yaml; then
+  pass "Zulip and Vault backup CronJobs pipe dumps directly through age asymmetric encryption"
+else
+  fail "Streaming age encryption missing" "Backup CronJobs do not stream through age asymmetric encryption"
+fi
+
+# 6. Kind overlay suspends CronJobs
+KIND_SUSPENDED=$(kubectl kustomize apps/overlays/kind | awk '/kind: CronJob/{flag=1} flag && /suspend: true/{count++; flag=0} END{print count+0}')
+if [ "${KIND_SUSPENDED}" -ge 2 ]; then
+  pass "Kind overlay properly suspends all backup CronJobs (spec.suspend: true)"
+else
+  fail "CronJobs not suspended in Kind" "Kind overlay does not suspend all backup CronJobs (found ${KIND_SUSPENDED} suspended)"
+fi
+
+# ------------------------------------------------------------------------------
 # Summary & Exit Code
 # ------------------------------------------------------------------------------
 echo "=============================================================================="

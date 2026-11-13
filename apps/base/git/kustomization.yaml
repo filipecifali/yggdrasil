@@ -4,4 +4,3 @@ resources:
   - helmrelease.yaml
   - forgejo-runner.yaml
   - httproute.yaml
-  - backup-cronjob.yaml

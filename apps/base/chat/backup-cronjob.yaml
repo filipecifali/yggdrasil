@@ -31,9 +31,9 @@ spec:
             fsGroup: 10001
             seccompProfile:
               type: RuntimeDefault
-          initContainers:
-            - name: dump-db
-              image: registry.yggdrasil.local/library/postgresql:18.1
+          containers:
+            - name: dump-encrypt-upload
+              image: registry.yggdrasil.local/library/backup-tools:v1.0.0
               securityContext:
                 allowPrivilegeEscalation: false
                 readOnlyRootFilesystem: true
@@ -49,45 +49,31 @@ spec:
                   value: "zulip-postgresql"
                 - name: PGDATABASE
                   value: "zulip"
+                - name: AGE_RECIPIENT
+                  value: "age1ql3z7hjyfkpw34dssm7v9dtzn6rvs2xsmjp6slum6m34uvlp8sms2qqpw5"
               command:
                 - /bin/sh
                 - -c
                 - |
-                  set -eu
-                  echo "==> Dumping Zulip PostgreSQL database..."
-                  pg_dump -h "${PGHOST}" -U "${PGUSER}" -d "${PGDATABASE}" --format=custom -f /backup/zulip.dump
-                  chmod 666 /backup/zulip.dump
-                  echo "==> Dump completed: /backup/zulip.dump ($(wc -c < /backup/zulip.dump) bytes)"
+                  set -euo pipefail
+                  TIMESTAMP=$(date +%Y%m%d%H%M)
+                  TARGET="zulip-pg-${TIMESTAMP}.dump.age"
+                  echo "==> Dumping, streaming through age asymmetric encryption, and uploading to S3..."
+                  pg_dump -h "${PGHOST}" -U "${PGUSER}" -d "${PGDATABASE}" --format=custom \
+                    | age -r "${AGE_RECIPIENT}" \
+                    | curl -sf -F "file=@-;filename=${TARGET}" \
+                        "http://seaweedfs-filer.storage-system.svc.cluster.local:8888/buckets/database-backups/zulip/"
+                  echo "==> Encrypted Zulip DB backup completed: ${TARGET}"
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 128Mi
+                limits:
+                  cpu: 500m
+                  memory: 256Mi
               volumeMounts:
-                - name: backup-volume
-                  mountPath: /backup
                 - name: tmp
                   mountPath: /tmp
-          containers:
-            - name: upload-s3
-              image: registry.yggdrasil.local/library/curl:8.12.1
-              securityContext:
-                allowPrivilegeEscalation: false
-                readOnlyRootFilesystem: true
-                capabilities:
-                  drop:
-                    - ALL
-              command:
-                - /bin/sh
-                - -c
-                - |
-                  set -eu
-                  TIMESTAMP=$(date +%Y%m%d%H%M)
-                  TARGET="zulip-pg-${TIMESTAMP}.dump"
-                  echo "==> Uploading dump to SeaweedFS S3 (/buckets/database-backups/zulip/${TARGET})..."
-                  curl -sf -F "file=@/backup/zulip.dump;filename=${TARGET}" \
-                    "http://seaweedfs-filer.storage-system.svc.cluster.local:8888/buckets/database-backups/zulip/"
-                  echo "==> Zulip DB backup uploaded successfully: ${TARGET}"
-              volumeMounts:
-                - name: backup-volume
-                  mountPath: /backup
           volumes:
-            - name: backup-volume
-              emptyDir: {}
             - name: tmp
               emptyDir: {}
